@@ -9,6 +9,8 @@ class QuestionBank extends Model
 {
     use HasFactory;
 
+    protected $table = 'question_bank';
+
     protected $fillable = [
         'user_id',
         'source_paper_code',
@@ -17,8 +19,8 @@ class QuestionBank extends Model
         'subject',
         'topic',
         'difficulty',
-        'stem',
-        'stem_image_url',
+        'question_text',
+        'question_image',
         'option_type',
         'correct_answer',
         'marks',

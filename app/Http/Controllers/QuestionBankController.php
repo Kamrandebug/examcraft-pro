@@ -13,12 +13,11 @@ class QuestionBankController extends Controller
      */
     public function index()
     {
-        $questions = QuestionBank::where('user_id', Auth::id())
-                                 ->with('options')
+        $questions = QuestionBank::with('options')
                                  ->latest()
-                                 ->paginate(20);
+                                 ->get();
 
-        return view('question_bank.index', compact('questions'));
+        return view('admin.questions.index', compact('questions'));
     }
 
     /**
@@ -26,7 +25,7 @@ class QuestionBankController extends Controller
      */
     public function create()
     {
-        return view('question_bank.create');
+        return view('admin.questions.create');
     }
 
     /**
@@ -34,27 +33,24 @@ class QuestionBankController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'source_paper_code' => 'nullable|string|max:50',
-            'session'           => 'nullable|string|max:50',
-            'year'              => 'nullable|digits:4',
-            'subject'           => 'nullable|string|max:255',
-            'topic'             => 'nullable|string|max:255',
-            'difficulty'        => 'nullable|string|in:easy,medium,hard',
-            'stem'              => 'required|string',
-            'stem_image_url'    => 'nullable|url',
-            'option_type'       => 'nullable|string|max:50',
-            'correct_answer'    => 'nullable|string|max:10',
-            'marks'             => 'nullable|integer|min:0',
-            'metadata'          => 'nullable|array',
+        $request->validate([
+            'question_text' => 'required_without:question_image',
+            'question_image' => 'required_without:question_text|image|max:2048',
         ]);
 
-        $validated['user_id'] = Auth::id();
+        $data = $request->only(['question_text']);
+        // Temporarily fallback to first user if not authenticated since auth is disabled
+        $data['user_id'] = Auth::id() ?? (\App\Models\User::first()->id ?? 1);
 
-        $question = QuestionBank::create($validated);
+        if ($request->hasFile('question_image')) {
+            $path = $request->file('question_image')->store('questions', 'public');
+            $data['question_image'] = $path;
+        }
 
-        return redirect()->route('question-bank.show', $question)
-                         ->with('success', 'Question added to bank successfully.');
+        QuestionBank::create($data);
+
+        return redirect()->route('admin.questions.index')
+                         ->with('success', 'Question added successfully.');
     }
 
     /**
@@ -108,7 +104,7 @@ class QuestionBankController extends Controller
     {
         $questionBank->delete();
 
-        return redirect()->route('question-bank.index')
+        return redirect()->route('admin.questions.index')
                          ->with('success', 'Question deleted successfully.');
     }
 }

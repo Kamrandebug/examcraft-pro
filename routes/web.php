@@ -11,6 +11,7 @@ use App\Http\Controllers\ExamPaperTopicController;
 use App\Http\Controllers\QuestionBankController;
 use App\Http\Controllers\QuestionBankOptionController;
 use App\Http\Controllers\ProjectSnapshotController;
+use App\Http\Controllers\AdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,19 @@ use App\Http\Controllers\ProjectSnapshotController;
 |     └── options
 |
 */
+
+// ── Admin Dashboard (Temporarily public) ───────────────────────────────────
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])
+         ->name('dashboard');
+    Route::resource('questions', QuestionBankController::class);
+    
+    // Global Options Management
+    Route::get('options', [QuestionBankOptionController::class, 'index'])->name('questions.options.index');
+    Route::post('options', [QuestionBankOptionController::class, 'store'])->name('questions.options.store');
+    
+    Route::resource('papers', ExamPaperController::class);
+});
 
 // ── Auth-protected routes ─────────────────────────────────────────────────
 Route::middleware(['auth'])->group(function () {

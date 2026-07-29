@@ -330,4 +330,40 @@ npm run build
 - **Collaboration**: Real-time collaborative editing using WebSockets (Laravel Reverb).
 
 ---
-*Created by ExamCraft AI Assistant — June 2026*
+
+## 12. Admin Dashboard (AdminLTE Integration)
+
+In July 2026, a secondary administration interface was added to the project, built using **AdminLTE v3.2.0**. This dashboard provides a structured, multi-page UI for managing the server-side database (MySQL) via traditional Laravel Blade views.
+
+### Key Features
+- **AdminLTE Base Layout**: 
+    - [master.blade.php](file:///k:/examcraft-pro/resources/views/admin/layouts/master.blade.php) provides the full HTML shell with a fixed sidebar, navbar, and footer.
+    - Sidebar navigation includes: Dashboard, Question Bank (All Questions, Add Question, Manage Options), and Exam Papers.
+    - Uses `@yield('content')`, `@yield('styles')`, and `@yield('scripts')` for modular page-specific content.
+    - Integrated **Toastr** for global success/error notifications.
+- **Interactive Dashboard**:
+    - [dashboard.blade.php](file:///k:/examcraft-pro/resources/views/admin/dashboard.blade.php) features 4 metric info-boxes (Total Papers, Questions, Users, Pending Exports).
+    - Includes a DataTables-powered list of "Recent Exam Papers" and a "Recent Questions" feed.
+- **Advanced Question Bank Management**:
+    - **Form 1 — Add Question**: [create.blade.php](file:///k:/examcraft-pro/resources/views/admin/questions/create.blade.php) supports text and image-based questions with instant JS previews and a character counter.
+    - **Form 2 — Manage Options**: [options.blade.php](file:///k:/examcraft-pro/resources/views/admin/questions/options.blade.php) allows batch management of MCQ options. Supports dynamic addition/removal of extra options (E and F) in addition to mandatory A-D. Features dynamic "Correct Answer" radio updates.
+    - **Index**: [index.blade.php](file:///k:/examcraft-pro/resources/views/admin/questions/index.blade.php) features a full-featured DataTables implementation with search, sort, pagination, and export buttons (CSV, Excel, PDF, Print).
+- **Backend Architecture**:
+    - **Database Updates**: Renamed `stem` columns to `question_text`/`question_image` in `question_bank`. Expanded `question_bank_options` with text/image fields for options A through F and updated the `correct_option` enum.
+    - **Controllers**: 
+        - [AdminController.php](file:///k:/examcraft-pro/app/Http/Controllers/AdminController.php) aggregates statistics.
+        - [QuestionBankOptionController.php](file:///k:/examcraft-pro/app/Http/Controllers/QuestionBankOptionController.php) handles global options logic with image storage management.
+    - **Auth Handling**: Admin routes are temporarily accessible without login. Controllers include a fallback to the first user ID to satisfy database constraints during development.
+- **Asset Structure**:
+    - All AdminLTE static assets (CSS, JS, Plugins) are centralized at `public/adminlte/`.
+    - Storage links enabled via `php artisan storage:link` for public access to uploaded question/option images.
+
+### Routes
+Added to `routes/web.php` under the `admin.` name prefix:
+- `GET /admin/dashboard` → `AdminController@dashboard`
+- `Resource /admin/questions` → `QuestionBankController`
+- `GET/POST /admin/options` → `QuestionBankOptionController` (Global Options Management)
+- `Resource /admin/papers` → `ExamPaperController`
+
+---
+*Created by ExamCraft AI Assistant — July 2026*

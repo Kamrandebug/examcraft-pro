@@ -13,9 +13,13 @@ class ExamPaperController extends Controller
      */
     public function index()
     {
-        $examPapers = ExamPaper::where('user_id', Auth::id())
-                               ->latest()
-                               ->paginate(15);
+        $query = ExamPaper::latest();
+        
+        if (Auth::check()) {
+            $query->where('user_id', Auth::id());
+        }
+
+        $examPapers = $query->paginate(15);
 
         return view('exam_papers.index', compact('examPapers'));
     }
@@ -47,11 +51,11 @@ class ExamPaperController extends Controller
             'status'             => 'nullable|string|max:50',
         ]);
 
-        $validated['user_id'] = Auth::id();
+        $validated['user_id'] = Auth::id() ?? (\App\Models\User::first()->id ?? 1);
 
         $examPaper = ExamPaper::create($validated);
 
-        return redirect()->route('exam-papers.show', $examPaper)
+        return redirect()->route('admin.papers.index')
                          ->with('success', 'Exam paper created successfully.');
     }
 
@@ -98,7 +102,7 @@ class ExamPaperController extends Controller
 
         $examPaper->update($validated);
 
-        return redirect()->route('exam-papers.show', $examPaper)
+        return redirect()->route('admin.papers.index')
                          ->with('success', 'Exam paper updated successfully.');
     }
 
@@ -109,7 +113,7 @@ class ExamPaperController extends Controller
     {
         $examPaper->delete();
 
-        return redirect()->route('exam-papers.index')
+        return redirect()->route('admin.papers.index')
                          ->with('success', 'Exam paper deleted successfully.');
     }
 }
