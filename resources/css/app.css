@@ -437,9 +437,20 @@ body {
   overflow: visible;
   position: relative;
 }
-#topbar::-webkit-scrollbar { height: 3px; }
-#topbar::-webkit-scrollbar-thumb { background: var(--border-light); }
 
+#topbar > .topbar-scroll {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+#topbar > .topbar-scroll::-webkit-scrollbar { height: 3px; }
+#topbar > .topbar-scroll::-webkit-scrollbar-track { background: transparent; }
+#topbar > .topbar-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
 .brand {
   font-family: var(--font-display);
   font-size: 16px;

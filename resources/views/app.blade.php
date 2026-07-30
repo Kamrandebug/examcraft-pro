@@ -27,6 +27,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <script>
+        window.authUser = @json([
+            'name' => auth()->user()->name ?? 'User',
+            'email' => auth()->user()->email ?? '',
+            'role' => auth()->user()->role->name ?? 'user'
+        ]);
+    </script>
 </head>
 <body>
 <div id="app"></div>

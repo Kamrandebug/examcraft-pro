@@ -12,31 +12,29 @@ use App\Http\Controllers\QuestionBankController;
 use App\Http\Controllers\QuestionBankOptionController;
 use App\Http\Controllers\ProjectSnapshotController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\ExamCraftController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes — ExamCraft Pro
 |--------------------------------------------------------------------------
-|
-| Route structure mirrors the DB relationships:
-|
-|   users
-|   exam-papers
-|     └── pages
-|           └── blocks
-|     └── topics
-|     └── snapshots
-|   mcq-blocks
-|     └── mcq-options
-|   question-bank
-|     └── options
-|
-*/
+|*/
 
-// ── Admin Dashboard (Temporarily public) ───────────────────────────────────
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])
-         ->name('dashboard');
+// ── Authentication ────────────────────────────────────────────────────────
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
+    Route::post('/login', [LoginController::class, 'login']);
+    Route::get('/register', [RegisterController::class, 'showRegister'])->name('register');
+    Route::post('/register', [RegisterController::class, 'register']);
+});
+
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// ── Admin Dashboard (Auth + Admin Middleware) ──────────────────────────────
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::resource('questions', QuestionBankController::class);
     
     // Global Options Management
@@ -44,13 +42,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('options', [QuestionBankOptionController::class, 'store'])->name('questions.options.store');
     
     Route::resource('papers', ExamPaperController::class);
+    Route::resource('users', UserController::class);
 });
 
-// ── Auth-protected routes ─────────────────────────────────────────────────
+// ── Auth-protected API/SPA routes ─────────────────────────────────────────
 Route::middleware(['auth'])->group(function () {
-
-    // ── Users ──────────────────────────────────────────────────────────────
-    Route::resource('users', UserController::class);
 
     // ── Exam Papers (top-level) ────────────────────────────────────────────
     Route::resource('exam-papers', ExamPaperController::class);
@@ -79,9 +75,8 @@ Route::middleware(['auth'])->group(function () {
     // ── Question Bank Options (nested under question-bank) ────────────────
     Route::resource('question-bank.options', QuestionBankOptionController::class);
 
-});
+    // ── SPA Routes (Inside auth group) ────────────────────────────────────
+    Route::get('/', [ExamCraftController::class, 'index'])->name('home');
+    Route::get('/{any}', [ExamCraftController::class, 'index'])->where('any', '.*');
 
-// ── SPA catch-all (must be last — matches any URL that didn't hit a route above) ─
-Route::get('/{any?}', function () {
-    return view('app');
-})->where('any', '.*');
+});

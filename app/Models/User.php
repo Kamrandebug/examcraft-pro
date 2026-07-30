@@ -14,7 +14,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
     ];
 
     protected $hidden = [
@@ -31,6 +30,16 @@ class User extends Authenticatable
     }
 
     // ─── Relationships ───────────────────────────────────────────
+
+    public function role()
+    {
+        return $this->hasOne(Role::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role?->name === 'admin';
+    }
 
     public function examPapers()
     {

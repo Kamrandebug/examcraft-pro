@@ -13,6 +13,7 @@ export const useUiStore = defineStore('ui', () => {
     const showPreview = ref(false);
     const showCtVariantModal = ref(false);
     const showThemeDropdown = ref(false);
+    const showUserDropdown = ref(false);
     const showSavedBadge = ref(false);
     const footerShowPageNum = ref(true);
     const toasts = ref([]);
@@ -29,6 +30,7 @@ export const useUiStore = defineStore('ui', () => {
         showPreview,
         showCtVariantModal,
         showThemeDropdown,
+        showUserDropdown,
         showSavedBadge,
         toasts
     };

@@ -56,11 +56,10 @@
           <!-- Menu Footer-->
           <li class="user-footer">
             <a href="#" class="btn btn-default btn-flat">Profile</a>
-            <a href="#" class="btn btn-default btn-flat float-right">Sign out</a>
-            {{-- Logout form removed temporarily until auth system is ready --}}
-            {{-- <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+            <a href="#" class="btn btn-default btn-flat float-right" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Sign out</a>
+            <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                 @csrf
-            </form> --}}
+            </form>
           </li>
         </ul>
       </li>
@@ -143,7 +142,7 @@
           </li>
 
           <li class="nav-item">
-            <a href="#" class="nav-link {{ Request::is('admin/users*') ? 'active' : '' }}">
+            <a href="{{ route('admin.users.index') }}" class="nav-link {{ Request::is('admin/users*') ? 'active' : '' }}">
               <i class="nav-icon fas fa-users"></i>
               <p>Users</p>
             </a>

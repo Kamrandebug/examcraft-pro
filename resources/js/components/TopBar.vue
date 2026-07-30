@@ -1,7 +1,8 @@
 <template>
   <div id="topbar">
+    <div class="topbar-scroll">
     <!-- Brand -->
-    <div class="brand">ExamCraft <span>Pro v35</span></div>
+    <div class="brand">ExamCraft <span>Pro v36</span></div>
     <span class="autosave-badge" :class="{ show: uiStore.showSavedBadge }" id="autosave-badge">
       <i class="fa fa-circle-check"></i> Saved
     </span>
@@ -84,11 +85,32 @@
     <button class="topbar-btn accent tb-tip" data-tip="Print / Export PDF" @click="printPaper()" style="padding:5px 10px;gap:5px;">
       <i class="fa fa-print"></i> <span style="font-size:11px;">Print</span>
     </button>
+
+    <div class="topbar-sep"></div>
+    </div><!-- end topbar-scroll -->
+
+    <!-- ── USER PROFILE ── -->
+    <div class="user-profile-dropdown" ref="userDropdownRef">
+      <button class="user-avatar" @click="toggleUserDropdown" :title="userName" type="button">
+        {{ userInitials }}
+      </button>
+      
+      <div class="user-dropdown-menu" v-if="showUserDropdown">
+        <div class="user-info">
+          <div class="user-name">{{ userName }}</div>
+          <div class="user-email">{{ userEmail }}</div>
+        </div>
+        <div class="dropdown-divider"></div>
+        <button class="logout-btn" @click="logout">
+          <i class="fa fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useExamStore } from '../stores/examStore';
 import { useUiStore } from '../stores/uiStore';
 import { useBlockOperations } from '../composables/useBlockOperations';
@@ -105,6 +127,20 @@ const { showPreview, printPaper } = usePrint();
 const { THEMES } = useTheme();
 
 const importInput = ref(null);
+const userDropdownRef = ref(null);
+const showUserDropdown = ref(false);
+
+const userName = window.authUser?.name || 'User';
+const userEmail = window.authUser?.email || '';
+
+const userInitials = computed(() => {
+    if (!userName) return 'U';
+    const parts = userName.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0].substring(0, 2).toUpperCase();
+});
 
 const currentThemeIcon = computed(() => THEMES[uiStore.theme]?.icon || '🌙');
 const currentThemeLabel = computed(() => THEMES[uiStore.theme]?.label || 'Night');
@@ -113,12 +149,15 @@ function toggleThemeDropdown(event) {
     uiStore.showThemeDropdown = !uiStore.showThemeDropdown;
 }
 
+function toggleUserDropdown() {
+    showUserDropdown.value = !showUserDropdown.value;
+}
+
 function openProjectManager() {
     uiStore.showProjectModal = true;
 }
 
 function loadCambridgeTemplate() {
-    // This could be implemented in useProjectManager or similar
     console.log('Loading template...');
 }
 
@@ -129,4 +168,125 @@ async function importProjectJSON(event) {
     }
     event.target.value = '';
 }
+
+const handleOutsideClick = (event) => {
+    if (userDropdownRef.value && !userDropdownRef.value.contains(event.target)) {
+        showUserDropdown.value = false;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('mousedown', handleOutsideClick);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('mousedown', handleOutsideClick);
+});
+
+const logout = () => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout';
+    
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = '_token';
+    csrf.value = document.querySelector('meta[name="csrf-token"]').content;
+    
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
+};
 </script>
+
+<style scoped>
+.user-profile-dropdown {
+    position: relative;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #e74c3c;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.3);
+    user-select: none;
+    padding: 0;
+    line-height: 1;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.user-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 44px;
+    background: #2d2d2d;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 200px;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: fadeIn 0.2s ease;
+}
+
+.user-info {
+    padding-bottom: 5px;
+}
+
+.user-name {
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    display: block;
+}
+
+.user-email {
+    color: #aaa;
+    font-size: 12px;
+    margin-top: 2px;
+    display: block;
+    word-break: break-all;
+}
+
+.dropdown-divider {
+    border-top: 1px solid #444;
+    margin: 10px 0;
+}
+
+.logout-btn {
+    width: 100%;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.logout-btn:hover {
+    background: #c0392b;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
