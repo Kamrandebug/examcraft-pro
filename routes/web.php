@@ -36,11 +36,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::resource('questions', QuestionBankController::class);
-    
-    // Global Options Management
-    Route::get('options', [QuestionBankOptionController::class, 'index'])->name('questions.options.index');
-    Route::post('options', [QuestionBankOptionController::class, 'store'])->name('questions.options.store');
-    
+
     Route::resource('papers', ExamPaperController::class);
     Route::resource('users', UserController::class);
 });

@@ -1,18 +1,16 @@
 @extends('admin.layouts.master')
 
-@section('title', 'All Questions')
-@section('page_title', 'Question Bank')
+@section('title', 'All Papers')
+@section('page_title', 'Exam Papers')
 
 @section('breadcrumb')
-    <li class="breadcrumb-item active">Question Bank</li>
+    <li class="breadcrumb-item active">Exam Papers</li>
 @endsection
 
 @section('styles')
-  <!-- DataTables -->
   <link rel="stylesheet" href="{{ asset('adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
   <link rel="stylesheet" href="{{ asset('adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
   <link rel="stylesheet" href="{{ asset('adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
-  <!-- SweetAlert2 -->
   <link rel="stylesheet" href="{{ asset('adminlte/plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css') }}">
 @endsection
 
@@ -21,53 +19,53 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">All Questions</h3>
+                <h3 class="card-title">All Exam Papers</h3>
                 <div class="card-tools">
-                    <a href="{{ route('admin.questions.create') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> Add New Question
+                    <a href="{{ route('admin.papers.create') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Create Paper
                     </a>
                 </div>
             </div>
             <div class="card-body">
-                <table id="questions-table" class="table table-bordered table-striped">
+                <table id="papers-table" class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Question</th>
+                            <th>Title</th>
                             <th>Subject</th>
-                            <th>Topic</th>
-                            <th>Marks</th>
-                            <th>Type</th>
+                            <th>Exam Code</th>
+                            <th>Year</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @isset($questions)
-                            @foreach($questions as $question)
+                        @isset($papers)
+                            @foreach($papers as $paper)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
-                                <td>{{ Str::limit(strip_tags($question->question_text), 100) }}</td>
-                                <td>{{ $question->subject }}</td>
-                                <td>{{ $question->topic }}</td>
-                                <td>{{ $question->marks }}</td>
+                                <td>{{ $paper->title }}</td>
+                                <td>{{ $paper->subject ?? '—' }}</td>
+                                <td>{{ $paper->exam_code ?? '—' }}</td>
+                                <td>{{ $paper->year ?? '—' }}</td>
                                 <td>
-                                    <span class="badge badge-{{ $question->option_type == 'MCQ' ? 'primary' : ($question->option_type == 'Text' ? 'info' : 'secondary') }}">
-                                        {{ $question->option_type }}
+                                    <span class="badge badge-{{ $paper->status == 'published' ? 'success' : 'warning' }}">
+                                        {{ ucfirst($paper->status ?? 'draft') }}
                                     </span>
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="{{ route('admin.questions.show', $question->id) }}" class="btn btn-info btn-sm">
+                                        <a href="{{ route('admin.papers.show', $paper->id) }}" class="btn btn-info btn-sm">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ route('admin.questions.edit', $question->id) }}" class="btn btn-warning btn-sm">
+                                        <a href="{{ route('admin.papers.edit', $paper->id) }}" class="btn btn-warning btn-sm">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $question->id }}" data-url="{{ route('admin.questions.destroy', $question->id) }}">
+                                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('admin.papers.destroy', $paper->id) }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
-                                    <form id="delete-form-{{ $question->id }}" action="{{ route('admin.questions.destroy', $question->id) }}" method="POST" style="display: none;">
+                                    <form id="delete-form-{{ $paper->id }}" action="{{ route('admin.papers.destroy', $paper->id) }}" method="POST" style="display: none;">
                                         @csrf
                                         @method('DELETE')
                                     </form>
@@ -84,7 +82,6 @@
 @endsection
 
 @section('scripts')
-<!-- DataTables  & Plugins -->
 <script src="{{ asset('adminlte/plugins/datatables/jquery.dataTables.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
@@ -97,23 +94,21 @@
 <script src="{{ asset('adminlte/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
-<!-- SweetAlert2 -->
 <script src="{{ asset('adminlte/plugins/sweetalert2/sweetalert2.min.js') }}"></script>
 
 <script>
   $(function () {
-    $("#questions-table").DataTable({
-      "responsive": true, 
-      "lengthChange": true, 
+    $("#papers-table").DataTable({
+      "responsive": true,
+      "lengthChange": true,
       "autoWidth": false,
       "buttons": ["copy", "csv", "excel", "pdf", "print", "colvis"]
-    }).buttons().container().appendTo('#questions-table_wrapper .col-md-6:eq(0)');
+    }).buttons().container().appendTo('#papers-table_wrapper .col-md-6:eq(0)');
 
-    // SweetAlert2 Delete Confirmation
     $('.delete-btn').on('click', function() {
         const id = $(this).data('id');
         const url = $(this).data('url');
-        
+
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",

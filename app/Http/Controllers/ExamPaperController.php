@@ -14,14 +14,14 @@ class ExamPaperController extends Controller
     public function index()
     {
         $query = ExamPaper::latest();
-        
+
         if (Auth::check()) {
             $query->where('user_id', Auth::id());
         }
 
-        $examPapers = $query->paginate(15);
+        $papers = $query->paginate(15);
 
-        return view('exam_papers.index', compact('examPapers'));
+        return view('admin.papers.index', compact('papers'));
     }
 
     /**
@@ -29,7 +29,7 @@ class ExamPaperController extends Controller
      */
     public function create()
     {
-        return view('exam_papers.create');
+        return view('admin.papers.create');
     }
 
     /**
@@ -55,32 +55,32 @@ class ExamPaperController extends Controller
 
         $examPaper = ExamPaper::create($validated);
 
-        return redirect()->route('admin.papers.index')
+        return redirect()->route('admin.papers.show', $examPaper)
                          ->with('success', 'Exam paper created successfully.');
     }
 
     /**
      * Display the specified exam paper with its pages and blocks.
      */
-    public function show(ExamPaper $examPaper)
+    public function show(ExamPaper $paper)
     {
-        $examPaper->load(['pages.blocks.mcqBlock.options', 'topics', 'snapshots']);
+        $paper->load(['pages.blocks.mcqBlock.options', 'topics', 'snapshots']);
 
-        return view('exam_papers.show', compact('examPaper'));
+        return view('admin.papers.show', compact('paper'));
     }
 
     /**
      * Show the form for editing the specified exam paper.
      */
-    public function edit(ExamPaper $examPaper)
+    public function edit(ExamPaper $paper)
     {
-        return view('exam_papers.edit', compact('examPaper'));
+        return view('admin.papers.edit', compact('paper'));
     }
 
     /**
      * Update the specified exam paper in the database.
      */
-    public function update(Request $request, ExamPaper $examPaper)
+    public function update(Request $request, ExamPaper $paper)
     {
         $validated = $request->validate([
             'title'              => 'required|string|max:255',
@@ -100,18 +100,18 @@ class ExamPaperController extends Controller
             'status'             => 'nullable|string|max:50',
         ]);
 
-        $examPaper->update($validated);
+        $paper->update($validated);
 
-        return redirect()->route('admin.papers.index')
+        return redirect()->route('admin.papers.show', $paper)
                          ->with('success', 'Exam paper updated successfully.');
     }
 
     /**
      * Remove the specified exam paper and all its related data.
      */
-    public function destroy(ExamPaper $examPaper)
+    public function destroy(ExamPaper $paper)
     {
-        $examPaper->delete();
+        $paper->delete();
 
         return redirect()->route('admin.papers.index')
                          ->with('success', 'Exam paper deleted successfully.');

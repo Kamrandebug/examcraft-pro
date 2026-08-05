@@ -151,8 +151,8 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
     *   **CRUD Operations**: Admin-only ability to add new users, edit profiles, and delete accounts (excluding self).
     *   **Role Assignment**: Toggle between `admin` and `user` roles via the `roles` relationship.
 3.  **Question Bank**:
-    *   **Form 1 (Create)**: Handles question text and image uploads.
-    *   **Form 2 (Options)**: Manages MCQ options A through F. Features dynamic JavaScript to add/remove extra options (E/F) and update correct answer radios live.
+    *   **Add Question (single-page multi-step form)**: A single form that captures the question in Step 1 — Question Details (question text with live character counter, optional image with preview), then the MCQ answer options in Step 2 — Answer Options. Options A–D are mandatory (text and/or image each, with a icheck-bootstrap "Mark as Correct" radio); extras E and F are added/removed dynamically via JavaScript. Both steps live in the same `<form>` and post to `admin.questions.store` in one request — the controller validates and saves the question and its options together (`resources/views/admin/questions/create.blade.php`).
+    *   The legacy standalone **Manage Options** page was removed when options were merged into the create flow: its sidebar nav item, the `admin/options` GET/POST routes, and `resources/views/admin/questions/options.blade.php` are gone. `QuestionBankOptionController` and the nested `question-bank.options` resource routes are retained.
 4.  **DataTables**: Integrated into `index.blade.php` for questions and papers, providing server-side search, sort, and export (CSV/Excel/PDF/Print).
 
 ---
@@ -176,4 +176,4 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 5.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
 
 ---
-*Last Updated: July 30, 2026 by ExamCraft AI Assistant*
+*Last Updated: July 31, 2026 by ExamCraft AI Assistant*

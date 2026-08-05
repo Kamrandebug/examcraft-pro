@@ -117,7 +117,7 @@
                   <li class="item">
                     <div class="product-info ml-0">
                       <a href="{{ route('admin.questions.show', $question->id) }}" class="product-title">
-                        {{ Str::limit(strip_tags($question->stem), 50) }}
+                        {{ Str::limit(strip_tags($question->question_text), 50) }}
                         <span class="badge badge-info float-right">{{ $question->marks }} Marks</span>
                       </a>
                       <span class="product-description">

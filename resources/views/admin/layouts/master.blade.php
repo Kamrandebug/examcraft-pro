@@ -108,12 +108,6 @@
                   <p>All Questions</p>
                 </a>
               </li>
-              <li class="nav-item">
-                <a href="{{ route('admin.questions.options.index') }}" class="nav-link {{ Request::is('admin/options*') ? 'active' : '' }}">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Manage Options</p>
-                </a>
-              </li>
             </ul>
           </li>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\QuestionBank;
+use App\Models\QuestionBankOption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -36,6 +37,24 @@ class QuestionBankController extends Controller
         $request->validate([
             'question_text' => 'required_without:question_image',
             'question_image' => 'required_without:question_text|image|max:2048',
+
+            // Options A-D are mandatory: text or image required for each.
+            'options.A.text' => 'required_without:options.A.image',
+            'options.A.image' => 'required_without:options.A.text|image|max:2048',
+            'options.B.text' => 'required_without:options.B.image',
+            'options.B.image' => 'required_without:options.B.text|image|max:2048',
+            'options.C.text' => 'required_without:options.C.image',
+            'options.C.image' => 'required_without:options.C.text|image|max:2048',
+            'options.D.text' => 'required_without:options.D.image',
+            'options.D.image' => 'required_without:options.D.text|image|max:2048',
+
+            // Options E/F are optional, but image (if provided) must be valid.
+            'options.E.text' => 'nullable',
+            'options.E.image' => 'nullable|image|max:2048',
+            'options.F.text' => 'nullable',
+            'options.F.image' => 'nullable|image|max:2048',
+
+            'correct_option' => 'required|in:A,B,C,D,E,F',
         ]);
 
         $data = $request->only(['question_text']);
@@ -47,34 +66,59 @@ class QuestionBankController extends Controller
             $data['question_image'] = $path;
         }
 
-        QuestionBank::create($data);
+        $question = QuestionBank::create($data);
+
+        // Save options for the question. The question_bank_options table stores
+        // one wide row per question (option_a_text .. option_f_image + correct_option).
+        $optionData = [
+            'question_id'  => $question->id,
+            'correct_option' => $request->input('correct_option'),
+        ];
+
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $label) {
+            $opt = strtolower($label);
+            $fieldText = "option_{$opt}_text";
+            $fieldImage = "option_{$opt}_image";
+
+            $optionData[$fieldText] = $request->input("options.{$label}.text") ?? null;
+
+            if ($request->hasFile("options.{$label}.image")) {
+                $optionData[$fieldImage] = $request->file("options.{$label}.image")->store('options', 'public');
+            } else {
+                $optionData[$fieldImage] = null;
+            }
+        }
+
+        QuestionBankOption::updateOrCreate(['question_id' => $question->id], $optionData);
 
         return redirect()->route('admin.questions.index')
-                         ->with('success', 'Question added successfully.');
+                         ->with('success', 'Question and options saved successfully.');
     }
 
     /**
      * Display the specified question with its options.
      */
-    public function show(QuestionBank $questionBank)
+    public function show(QuestionBank $question)
     {
-        $questionBank->load('options');
+        $question->load('options');
 
-        return view('question_bank.show', compact('questionBank'));
+        return view('admin.questions.show', compact('question'));
     }
 
     /**
      * Show the form for editing the specified question.
      */
-    public function edit(QuestionBank $questionBank)
+    public function edit(QuestionBank $question)
     {
-        return view('question_bank.edit', compact('questionBank'));
+        $question->load('options');
+
+        return view('admin.questions.edit', compact('question'));
     }
 
     /**
      * Update the specified question in the database.
      */
-    public function update(Request $request, QuestionBank $questionBank)
+    public function update(Request $request, QuestionBank $question)
     {
         $validated = $request->validate([
             'source_paper_code' => 'nullable|string|max:50',
@@ -83,26 +127,30 @@ class QuestionBankController extends Controller
             'subject'           => 'nullable|string|max:255',
             'topic'             => 'nullable|string|max:255',
             'difficulty'        => 'nullable|string|in:easy,medium,hard',
-            'stem'              => 'required|string',
-            'stem_image_url'    => 'nullable|url',
+            'question_text'     => 'required|string',
+            'question_image'    => 'nullable|image|max:2048',
             'option_type'       => 'nullable|string|max:50',
             'correct_answer'    => 'nullable|string|max:10',
             'marks'             => 'nullable|integer|min:0',
             'metadata'          => 'nullable|array',
         ]);
 
-        $questionBank->update($validated);
+        if ($request->hasFile('question_image')) {
+            $validated['question_image'] = $request->file('question_image')->store('questions', 'public');
+        }
 
-        return redirect()->route('question-bank.show', $questionBank)
+        $question->update($validated);
+
+        return redirect()->route('admin.questions.show', $question)
                          ->with('success', 'Question updated successfully.');
     }
 
     /**
      * Remove the specified question from the bank.
      */
-    public function destroy(QuestionBank $questionBank)
+    public function destroy(QuestionBank $question)
     {
-        $questionBank->delete();
+        $question->delete();
 
         return redirect()->route('admin.questions.index')
                          ->with('success', 'Question deleted successfully.');
