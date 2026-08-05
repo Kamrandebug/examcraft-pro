@@ -51,16 +51,19 @@ examcraft-pro/
 │   │   └── ProjectSnapshot.php
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── ExamCraftController.php       → Returns app.blade.php view serving the SPA shell
-│   │   │   ├── UserController.php            → Admin-side CRUD for users and role management
-│   │   │   ├── ExamPaperController.php       → Full CRUD for exam papers
-│   │   │   ├── PageController.php            → Nested CRUD (exam-papers.pages)
-│   │   │   ├── BlockController.php           → Nested CRUD (exam-papers.pages.blocks)
-│   │   │   ├── McqBlockController.php        → Full CRUD for MCQ-specific block data
-│   │   │   ├── McqOptionController.php       → Nested CRUD (mcq-blocks.mcq-options)
-│   │   │   ├── ExamPaperTopicController.php  → Nested CRUD (exam-papers.topics)
-│   │   │   ├── QuestionBankController.php    → Full CRUD for question bank
-│   │   │   └── QuestionBankOptionController.php → Nested CRUD (question-bank.options)
+│   │   │   ├── AdminController.php            → Admin dashboard with stats aggregation
+│   │   │   ├── AuthController.php             → Handles login, register, logout
+│   │   │   ├── ExamCraftController.php         → Returns app.blade.php view serving the SPA shell
+│   │   │   ├── UserController.php              → Admin-side CRUD for users and role management
+│   │   │   ├── ExamPaperController.php         → Full CRUD for exam papers (admin & API)
+│   │   │   ├── PageController.php              → Nested CRUD (exam-papers.pages)
+│   │   │   ├── BlockController.php             → Nested CRUD (exam-papers.pages.blocks)
+│   │   │   ├── McqBlockController.php          → Full CRUD for MCQ-specific block data
+│   │   │   ├── McqOptionController.php         → Nested CRUD (mcq-blocks.mcq-options)
+│   │   │   ├── ExamPaperTopicController.php    → Nested CRUD (exam-papers.topics)
+│   │   │   ├── QuestionBankController.php      → Full CRUD for question bank (admin & API routes)
+│   │   │   ├── QuestionBankOptionController.php → Nested CRUD (question-bank.options)
+│   │   │   └── Controller.php                  → Base controller
 │   │   └── Middleware/
 │   │       └── AdminMiddleware.php           → RBAC check for admin access (via $user->isAdmin())
 │   └── Providers/
@@ -68,7 +71,7 @@ examcraft-pro/
 │   └── app.php                               → Middleware & routing registration
 ├── config/                                   → Laravel system configuration
 ├── database/
-│   └── migrations/                           → 17+ migrations defining the examcraft schema
+│   └── migrations/                           → 15 migrations defining the examcraft schema
 ├── public/
 │   ├── adminlte/                             → Centralized AdminLTE v3.2.0 assets (dist, plugins)
 │   └── storage/                              → Symlink to storage/app/public/ (images)
@@ -84,7 +87,8 @@ examcraft-pro/
 │   └── views/
 │       ├── admin/                            → Blade templates for Admin Dashboard
 │       │   ├── users/                        → User management views (index, create, edit, show)
-│       │   ├── questions/                    → Question bank views
+│       │   ├── questions/                    → Question bank views (index, create, show, edit)
+│       │   ├── papers/                      → Exam papers views (index, create, show, edit)
 │       │   └── dashboard.blade.php           → Dashboard landing page
 │       ├── auth/                             → Blade templates for Login/Register
 │       └── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
@@ -151,9 +155,17 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
     *   **CRUD Operations**: Admin-only ability to add new users, edit profiles, and delete accounts (excluding self).
     *   **Role Assignment**: Toggle between `admin` and `user` roles via the `roles` relationship.
 3.  **Question Bank**:
-    *   **Add Question (single-page multi-step form)**: A single form that captures the question in Step 1 — Question Details (question text with live character counter, optional image with preview), then the MCQ answer options in Step 2 — Answer Options. Options A–D are mandatory (text and/or image each, with a icheck-bootstrap "Mark as Correct" radio); extras E and F are added/removed dynamically via JavaScript. Both steps live in the same `<form>` and post to `admin.questions.store` in one request — the controller validates and saves the question and its options together (`resources/views/admin/questions/create.blade.php`).
+    *   **Index (DataTables List)**: Searchable, paginated table showing all questions with columns for question text, subject, topic, marks, and type. Export buttons (Copy, CSV, Excel, PDF, Print) with SweetAlert2 delete confirmations (`resources/views/admin/questions/index.blade.php`).
+    *   **Create (2-step form)**: Step 1 captures question text (with live character counter) and optional image upload with preview. Step 2 captures answer options A–D (mandatory, text and/or image each, with iCheck "Mark as Correct" radio), plus dynamic E–F (added/removed via JavaScript). A step indicator pill shows progress. All data posts to `admin.questions.store` in one request — the controller validates and saves the question with its options together (`resources/views/admin/questions/create.blade.php`).
+    *   **Show (detail view)**: Displays question text, image, all options in a table with correct-answer highlighting, and metadata (subject, topic, marks) (`resources/views/admin/questions/show.blade.php`).
+    *   **Edit**: Form to update question text, metadata fields (subject, topic, marks, difficulty, type, correct answer), and upload a replacement image with live preview. Shows the current image if one exists (`resources/views/admin/questions/edit.blade.php`).
     *   The legacy standalone **Manage Options** page was removed when options were merged into the create flow: its sidebar nav item, the `admin/options` GET/POST routes, and `resources/views/admin/questions/options.blade.php` are gone. `QuestionBankOptionController` and the nested `question-bank.options` resource routes are retained.
-4.  **DataTables**: Integrated into `index.blade.php` for questions and papers, providing server-side search, sort, and export (CSV/Excel/PDF/Print).
+4.  **Exam Papers**:
+    *   **Index (DataTables List)**: Searchable, paginated table of all exam papers with title, subject, exam code, year, and status columns. Export support and SweetAlert2 delete confirmations (`resources/views/admin/papers/index.blade.php`).
+    *   **Create**: Form capturing all exam paper metadata — title, subject, exam code, organization, session, year, duration, typography preset, instructions, and materials (`resources/views/admin/papers/create.blade.php`).
+    *   **Show (detail view)**: Displays all paper metadata including status badge, pages overview with block counts per page, and related topics/snapshots (`resources/views/admin/papers/show.blade.php`).
+    *   **Edit**: Form to update all paper metadata including the status toggle (Draft / Published) (`resources/views/admin/papers/edit.blade.php`).
+5.  **DataTables**: Integrated into `index.blade.php` for questions, papers, and dashboard tables, providing client-side search, sort, and export (CSV/Excel/PDF/Print) via the DataTables Buttons plugin. Powered by AdminLTE's bundled plugins (JSZip, pdfmake).
 
 ---
 
@@ -176,4 +188,4 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 5.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
 
 ---
-*Last Updated: July 31, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 5, 2026 by ExamCraft AI Assistant*
