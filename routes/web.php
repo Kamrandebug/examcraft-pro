@@ -32,6 +32,14 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+// ── Root Route: landing page for guests, SPA for authenticated users ──────
+Route::get('/', function () {
+    if (auth()->check()) {
+        return app(ExamCraftController::class)->index();
+    }
+    return view('landing');
+})->name('home');
+
 // ── Admin Dashboard (Auth + Admin Middleware) ──────────────────────────────
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -71,8 +79,7 @@ Route::middleware(['auth'])->group(function () {
     // ── Question Bank Options (nested under question-bank) ────────────────
     Route::resource('question-bank.options', QuestionBankOptionController::class);
 
-    // ── SPA Routes (Inside auth group) ────────────────────────────────────
-    Route::get('/', [ExamCraftController::class, 'index'])->name('home');
+    // ── Catch-all SPA route (inside auth group) ───────────────────────────
     Route::get('/{any}', [ExamCraftController::class, 'index'])->where('any', '.*');
 
 });

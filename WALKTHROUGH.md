@@ -74,6 +74,8 @@ examcraft-pro/
 │   └── migrations/                           → 15 migrations defining the examcraft schema
 ├── public/
 │   ├── adminlte/                             → Centralized AdminLTE v3.2.0 assets (dist, plugins)
+│   ├── css/
+│   │   └── landing.css                       → Standalone marketing landing page styles (960+ lines)
 │   └── storage/                              → Symlink to storage/app/public/ (images)
 ├── resources/
 │   ├── css/
@@ -91,9 +93,10 @@ examcraft-pro/
 │       │   ├── papers/                      → Exam papers views (index, create, show, edit)
 │       │   └── dashboard.blade.php           → Dashboard landing page
 │       ├── auth/                             → Blade templates for Login/Register
-│       └── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
+│       ├── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
+│       └── landing.blade.php                 → Marketing landing page (guests only)
 ├── routes/
-│   ├── web.php                               → Auth, Admin (prefixed), and SPA routes
+│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed), and SPA routes
 │   └── api.php                               → Stateless API routes
 ├── storage/app/public/
 │   ├── questions/                            → Uploaded question images
@@ -175,12 +178,54 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 - **Roles**: `admin` and `user`.
 - **User Model Helper**: `isAdmin()` method checks the related `Role` model for the 'admin' name.
 - **AdminMiddleware**: Protects all `/admin/*` routes.
-- **SPA Protection**: The main ExamCraft SPA (`/`) is protected by the `auth` middleware.
+- **SPA Protection**: The main ExamCraft SPA (`/`) is served only to authenticated users via `ExamCraftController@index`. Guests visiting `/` are shown the marketing landing page (`landing.blade.php`) instead. After login/register, users are redirected to `/` which now loads the SPA automatically.
 - **Registration**: Public registration (`/register`) defaults to the `user` role and has no role selection field to maintain security.
 
 ---
 
-## 9. Deployment & Setup Details
+## 9. Marketing Landing Page
+
+A standalone Blade template (`landing.blade.php`) with its own CSS (`public/css/landing.css`) serves as the front door for unauthenticated visitors.
+
+### Route Strategy
+The root `GET /` route lives **outside** all middleware groups in `routes/web.php`. It checks `auth()->check()`:
+- **Guest** → returns `view('landing')` — the marketing page
+- **Authenticated** → returns `app(ExamCraftController::class)->index()` — the SPA
+
+After login or registration, Laravel redirects to `/` which automatically serves the SPA.
+
+### Design System — Academic Authority Theme
+Built around a Cambridge-inspired palette:
+| Variable | Color | Usage |
+|----------|-------|-------|
+| `--navy` | `#1B2A4A` | Primary bg, navbar, dark sections |
+| `--parchment` | `#F7F2E4` | Light section bg |
+| `--gold` | `#C9A84C` | Accent, CTA buttons, highlights |
+| `--crimson` | `#8B1A1A` | Cambridge red, answer sheet references |
+| `--card-dark` | `#243559` | Cards on navy background |
+
+Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper codes.
+
+### Page Sections
+1. **Sticky Navbar** — transparent→navy on scroll, hamburger on mobile, "Log in" + "Get Started" CTAs
+2. **Hero** — 2-column grid with a realistic Cambridge exam paper preview card (PHYSICS 5054/11) + hero text and CTAs
+3. **Feature Highlights** — 4 cards (Typography Engine, Block System, Auto-Numbering, PDF Export) with colored icon circles
+4. **Block System Showcase** — 3×2 grid of block type cards on navy background with gold top borders
+5. **How It Works** — 3-step horizontal flow with numbered circles and dashed connectors
+6. **Who It's For** — 3 audience cards (Schools, Private Tutors, University Departments) with gold left accent
+7. **CTA Banner** — centered call-to-action on navy: "Ready to set your first paper?"
+8. **Footer** — 3-column link grid (Product, Support, Legal) + copyright
+
+### Technical Details
+- **Zero dependencies**: No Vite pipeline, no Bootstrap, no Tailwind — pure CSS with Google Fonts CDN
+- **Fully responsive**: 1280px desktop · 768px tablet · 375px mobile breakpoints
+- **Scroll reveal**: IntersectionObserver adds `.visible` to `.reveal` elements as they enter the viewport
+- **Smooth scroll**: Anchor links scroll to sections with `behavior: smooth`
+- **Inline SVG only**: No icon libraries or image assets — every icon is an inline SVG
+
+---
+
+## 10. Deployment & Setup Details
 1.  **Dependencies**: `composer install` && `npm install`.
 2.  **Environment**: Configure `.env` with MySQL credentials and `APP_URL`.
 3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin).
@@ -188,4 +233,4 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 5.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
 
 ---
-*Last Updated: August 5, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 10, 2026 by ExamCraft AI Assistant*
