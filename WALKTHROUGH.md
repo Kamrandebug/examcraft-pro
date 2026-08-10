@@ -51,8 +51,20 @@ examcraft-pro/
 │   │   └── ProjectSnapshot.php
 │   ├── Http/
 │   │   ├── Controllers/
+│   │   │   ├── Auth/                            → Breeze v2.4.2 authentication controllers (10 files)
+│   │   │   │   ├── AuthenticatedSessionController.php  → Login/logout session handling
+│   │   │   │   ├── RegisteredUserController.php       → Registration
+│   │   │   │   ├── PasswordResetLinkController.php    → Forgot password email
+│   │   │   │   ├── NewPasswordController.php          → Reset password form
+│   │   │   │   ├── EmailVerificationPromptController.php → Verify email notice
+│   │   │   │   ├── EmailVerificationNotificationController.php → Resend verification
+│   │   │   │   ├── VerifyEmailController.php          → Verify email link handler
+│   │   │   │   ├── ConfirmablePasswordController.php  → Confirm password gate
+│   │   │   │   ├── PasswordController.php             → Update password
+│   │   │   │   ├── LoginController.php                → (legacy — pre-Breeze)
+│   │   │   │   └── RegisterController.php             → (legacy — pre-Breeze)
 │   │   │   ├── AdminController.php            → Admin dashboard with stats aggregation
-│   │   │   ├── AuthController.php             → Handles login, register, logout
+│   │   │   ├── ProfileController.php           → Breeze profile edit/update/delete
 │   │   │   ├── ExamCraftController.php         → Returns app.blade.php view serving the SPA shell
 │   │   │   ├── UserController.php              → Admin-side CRUD for users and role management
 │   │   │   ├── ExamPaperController.php         → Full CRUD for exam papers (admin & API)
@@ -92,11 +104,19 @@ examcraft-pro/
 │       │   ├── questions/                    → Question bank views (index, create, show, edit)
 │       │   ├── papers/                      → Exam papers views (index, create, show, edit)
 │       │   └── dashboard.blade.php           → Dashboard landing page
-│       ├── auth/                             → Blade templates for Login/Register
+│       ├── auth/                             → Blade templates for Login/Register (Breeze v2.4.2)
+│       │   ├── login.blade.php                → Login form
+│       │   ├── register.blade.php             → Registration form
+│       │   ├── forgot-password.blade.php       → Password reset request
+│       │   ├── reset-password.blade.php        → New password form
+│       │   ├── verify-email.blade.php          → Email verification notice
+│       │   └── confirm-password.blade.php      → Password confirmation gate
+│       ├── dashboard.blade.php                → Breeze authenticated dashboard
 │       ├── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
 │       └── landing.blade.php                 → Marketing landing page (guests only)
 ├── routes/
 │   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed), and SPA routes
+│   ├── auth.php                              → Breeze authentication routes (login, register, password reset, email verification)
 │   └── api.php                               → Stateless API routes
 ├── storage/app/public/
 │   ├── questions/                            → Uploaded question images
@@ -173,7 +193,68 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 ---
 
 ## 8. Authentication & Authorization
-### **Role-Based Access Control (RBAC)**
+
+### Authentication Provider — Laravel Breeze v2.4.2
+Authentication is handled by **Laravel Breeze v2.4.2** (installed August 10, 2026), replacing the old custom `AuthController.php`:
+
+```bash
+composer require laravel/breeze --dev
+php artisan breeze:install blade
+```
+
+### Breeze Controllers (`app/Http/Controllers/Auth/`)
+9 generated controllers handle all auth flows:
+
+| Controller | Purpose |
+|------------|---------|
+| `AuthenticatedSessionController.php` | Login form display + authenticate + logout |
+| `RegisteredUserController.php` | Registration form + create user |
+| `PasswordResetLinkController.php` | "Forgot password" form + send reset email |
+| `NewPasswordController.php` | Reset password form (after email link) + update password |
+| `EmailVerificationPromptController.php` | "Verify your email" notice page |
+| `EmailVerificationNotificationController.php` | Resend verification email |
+| `VerifyEmailController.php` | Handle signed verification link |
+| `ConfirmablePasswordController.php` | Confirm password gate (before sensitive actions) |
+| `PasswordController.php` | Update password for authenticated user |
+
+Two legacy controllers (`LoginController.php`, `RegisterController.php`) remain in the directory but are no longer used by the route system — they are preserved for reference only.
+
+### Breeze Auth Views (`resources/views/auth/`)
+| View | Purpose |
+|------|---------|
+| `login.blade.php` | Login form |
+| `register.blade.php` | Registration form |
+| `forgot-password.blade.php` | Password reset request |
+| `reset-password.blade.php` | New password form |
+| `verify-email.blade.php` | Email verification prompt |
+| `confirm-password.blade.php` | Confirm password gate |
+
+### Auth Routes (`routes/auth.php`)
+All Breeze auth routes live in a separate file required at the bottom of `routes/web.php`:
+
+| Method | URI | Controller | Name |
+|--------|-----|------------|------|
+| GET | `/register` | RegisteredUserController@create | `register` |
+| POST | `/register` | RegisteredUserController@store | — |
+| GET | `/login` | AuthenticatedSessionController@create | `login` |
+| POST | `/login` | AuthenticatedSessionController@store | — |
+| POST | `/logout` | AuthenticatedSessionController@destroy | `logout` |
+| GET | `/forgot-password` | PasswordResetLinkController@create | `password.request` |
+| POST | `/forgot-password` | PasswordResetLinkController@store | `password.email` |
+| GET | `/reset-password/{token}` | NewPasswordController@create | `password.reset` |
+| POST | `/reset-password` | NewPasswordController@store | `password.store` |
+| GET | `/verify-email` | EmailVerificationPromptController | `verification.notice` |
+| GET | `/verify-email/{id}/{hash}` | VerifyEmailController | `verification.verify` |
+| POST | `/email/verification-notification` | EmailVerificationNotificationController@store | `verification.send` |
+| GET | `/confirm-password` | ConfirmablePasswordController@show | `password.confirm` |
+| POST | `/confirm-password` | ConfirmablePasswordController@store | — |
+| PUT | `/password` | PasswordController@update | `password.update` |
+
+### Other Breeze Additions
+- **`ProfileController.php`** — handles profile edit (`profile.edit`), update (`profile.update`), and account deletion (`profile.destroy`) under `auth` middleware. Views live in `resources/views/profile/`.
+- **`dashboard.blade.php`** — the Breeze default authenticated dashboard at `GET /dashboard` (requires `auth` + `verified` middleware).
+
+### Role-Based Access Control (RBAC)
 - **Architecture**: Decoupled from the `users` table. Uses a dedicated `roles` table linked via `user_id` for better scalability.
 - **Roles**: `admin` and `user`.
 - **User Model Helper**: `isAdmin()` method checks the related `Role` model for the 'admin' name.
@@ -183,7 +264,29 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
 
 ---
 
-## 9. Marketing Landing Page
+## 9. Mail Configuration (Gmail SMTP)
+
+Password reset emails from Breeze require a working mail driver. Configured with **Gmail SMTP** using an App Password:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=kamran.debug@gmail.com
+MAIL_PASSWORD=vwzbztngwpftbjxy
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="kamran.debug@gmail.com"
+MAIL_FROM_NAME="ExamCraft Pro"
+```
+
+### Notes
+- **Gmail App Password** is used (not the account's regular password). App passwords require 2-Step Verification enabled on the Google Account.
+- **Password reset emails** confirmed working — reset links arrive in the Gmail inbox and the full reset flow (request → email → link → new password → login) is verified.
+- TLS encryption on port 587 is standard for Gmail SMTP submission.
+
+---
+
+## 10. Marketing Landing Page
 
 A standalone Blade template (`landing.blade.php`) with its own CSS (`public/css/landing.css`) serves as the front door for unauthenticated visitors.
 
@@ -225,12 +328,14 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 
 ---
 
-## 10. Deployment & Setup Details
+## 11. Deployment & Setup Details
 1.  **Dependencies**: `composer install` && `npm install`.
 2.  **Environment**: Configure `.env` with MySQL credentials and `APP_URL`.
 3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin).
-4.  **Storage**: `php artisan storage:link` (Critical for image visibility).
-5.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
+4.  **Breeze Install**: `composer require laravel/breeze --dev` → `php artisan breeze:install blade` (adds auth controllers, views, routes, and ProfileController).
+5.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
+6.  **Storage**: `php artisan storage:link` (Critical for image visibility).
+7.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
 
 ---
 *Last Updated: August 10, 2026 by ExamCraft AI Assistant*
