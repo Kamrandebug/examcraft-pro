@@ -34,7 +34,7 @@
         window.authUser = @json([
             'name' => auth()->user()->name ?? 'User',
             'email' => auth()->user()->email ?? '',
-            'role' => auth()->user()->role->name ?? 'user'
+            'role' => auth()->user()->role?->name ?? 'user'
         ]);
     </script>
 </head>

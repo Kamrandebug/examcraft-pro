@@ -91,7 +91,7 @@ examcraft-pro/
 │   └── storage/                              → Symlink to storage/app/public/ (images)
 ├── resources/
 │   ├── css/
-│   │   └── app.css                           → Core exam layout CSS (1,600+ lines)
+│   │   └── app.css                           → Theme system (1,700+ lines) + Tailwind directives. 4 themes (Day/Afternoon/Night/Late Night) with CSS custom properties, paper typography variables, and all component styles (topbar, panels, canvas, blocks, rulers, modals, toasts, etc.)
 │   ├── js/
 │   │   ├── app.js                            → Vue app entry point; initializes Pinia
 │   │   ├── App.vue                           → Root component; handles layout & auto-save
@@ -115,13 +115,13 @@ examcraft-pro/
 │       ├── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
 │       └── landing.blade.php                 → Marketing landing page (guests only)
 ├── routes/
-│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed), and SPA routes
-│   ├── auth.php                              → Breeze authentication routes (login, register, password reset, email verification)
+│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed + bare / redirect), and SPA routes
+│   ├── auth.php                              → Breeze v2.4.2 authentication routes (login, register, password reset, email verification, confirm-password, logout)
 │   └── api.php                               → Stateless API routes
 ├── storage/app/public/
 │   ├── questions/                            → Uploaded question images
 │   └── options/                              → Uploaded MCQ option images
-├── vite.config.js                            → Vite configuration for Vue 3
+├── vite.config.js                            → Vite configuration: Laravel plugin + Vue 3 SFC compiler (transformAssetUrls), Vue esm-bundler alias, CORS enabled, host binding to 127.0.0.1
 └── package.json                              → Frontend dependencies & scripts
 ```
 
@@ -202,12 +202,48 @@ composer require laravel/breeze --dev
 php artisan breeze:install blade
 ```
 
+### Post-Breeze Integration Fixes (August 11, 2026)
+
+Installing Breeze caused several regressions that were resolved:
+
+#### 8.1 CSS Wipeout — Blank White Page
+Breeze replaced `resources/css/app.css` (1,673 lines) with 3 lines of Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`). This wiped the entire ExamCraft theme system:
+
+- **4 theme definitions** (Day, Afternoon, Night, Late Night) — each with ~20 CSS custom properties
+- **Shared CSS variables** (`--font-body`, `--font-display`, `--font-mono`, `--radius`, `--radius-sm`, `--transition`)
+- **Paper typography variables** (`--paper-font-family`, `--paper-q-font-size`, etc.)
+- **~1,200 lines of component styles**: topbar, panels, canvas, blocks, rulers, modals, toasts, scrollbar, form inputs, typography controls, answer key
+
+**Root Cause**: The Vue SPA does not use Tailwind classes — every component references the custom CSS properties. Without them, all UI elements rendered with `transparent` backgrounds and `inherit` text colors (matching the dark body background), making everything invisible despite the JS running correctly.
+
+**Fix**: Restored the full theme CSS into `resources/css/app.css` while keeping the 3 Tailwind directives at the top (these do no harm in the SPA context and preserve the Tailwind setup inherited from Breeze).
+
+#### 8.2 Login Redirect — `/dashboard` vs `/`
+Breeze defaults to redirecting authenticated users to `route('dashboard')` (`/dashboard`). Changed in two places:
+
+1. **`AuthenticatedSessionController.php`** — `redirect()->intended()` target changed from `route('dashboard', absolute: false)` to `'/'`
+2. **`bootstrap/app.php`** — Added `$middleware->redirectUsersTo('/')` so Breeze's auth middleware redirects authenticated guests to the SPA
+3. **`routes/web.php`** — `/dashboard` route changed from showing `view('dashboard')` to a simple `redirect('/')` with `auth` middleware only (removed `verified`)
+
+#### 8.3 `window.authUser` Nullsafe Crash
+`resources/views/app.blade.php` injects `window.authUser` with user data. The original code used `auth()->user()->role->name ?? 'user'` — but if a user has no role row in the database, `->role` returns `null`, and accessing `->name` on `null` throws a PHP error (**Attempt to read property "name" on null**) before the `??` operator can catch it. This killed the blade template mid-render, so `window.authUser` was never injected, and the SPA loaded with `undefined` user data.
+
+**Fix**: Changed to `auth()->user()->role?->name ?? 'user'` (nullsafe operator).
+
+#### 8.4 Avatar Dropdown Not Visible
+The user avatar dropdown in `TopBar.vue` was invisible because it was clipped by two layers:
+
+1. **`#app`** (`App.vue`) has `overflow: hidden; height: 100vh` — clips all content at the viewport boundary
+2. **CSS spec hard rule** — when `overflow-x: auto` is set, browsers force `overflow-y` to `auto` regardless of the declared value (cannot have one axis scrollable and the other visible)
+
+**Fix**: Used Vue `<Teleport to="body">` to render the dropdown menu as a direct child of `<body>`, outside the `#app` DOM tree. The dropdown position is calculated dynamically via `getBoundingClientRect()` on the avatar wrapper, stored in a reactive `dropdownStyle` object, and applied as `position: fixed` with computed `top`/`right` values. The outside-click handler was updated to check `event.target.closest('.user-dropdown-menu')` since the dropdown is no longer inside `userDropdownRef`.
+
 ### Breeze Controllers (`app/Http/Controllers/Auth/`)
 9 generated controllers handle all auth flows:
 
 | Controller | Purpose |
 |------------|---------|
-| `AuthenticatedSessionController.php` | Login form display + authenticate + logout |
+| `AuthenticatedSessionController.php` | Login form display + authenticate + logout (redirect target patched to `/`) |
 | `RegisteredUserController.php` | Registration form + create user |
 | `PasswordResetLinkController.php` | "Forgot password" form + send reset email |
 | `NewPasswordController.php` | Reset password form (after email link) + update password |
@@ -252,14 +288,15 @@ All Breeze auth routes live in a separate file required at the bottom of `routes
 
 ### Other Breeze Additions
 - **`ProfileController.php`** — handles profile edit (`profile.edit`), update (`profile.update`), and account deletion (`profile.destroy`) under `auth` middleware. Views live in `resources/views/profile/`.
-- **`dashboard.blade.php`** — the Breeze default authenticated dashboard at `GET /dashboard` (requires `auth` + `verified` middleware).
+- **`dashboard.blade.php`** — the Breeze default authenticated dashboard is no longer used; `/dashboard` now redirects to `/` (the SPA).
 
 ### Role-Based Access Control (RBAC)
 - **Architecture**: Decoupled from the `users` table. Uses a dedicated `roles` table linked via `user_id` for better scalability.
 - **Roles**: `admin` and `user`.
 - **User Model Helper**: `isAdmin()` method checks the related `Role` model for the 'admin' name.
 - **AdminMiddleware**: Protects all `/admin/*` routes.
-- **SPA Protection**: The main ExamCraft SPA (`/`) is served only to authenticated users via `ExamCraftController@index`. Guests visiting `/` are shown the marketing landing page (`landing.blade.php`) instead. After login/register, users are redirected to `/` which now loads the SPA automatically.
+- **SPA Protection**: The main ExamCraft SPA (`/`) is served only to authenticated users via `view('app')` in a route closure. Guests visiting `/` are shown the marketing landing page (`landing.blade.php`) instead. After login/register, users are redirected to `/` which now loads the SPA automatically.
+- **Admin `/` Redirect**: A `GET /admin` route was added that redirects to `admin.dashboard` via `route()` helper, since the admin group previously only defined `/admin/dashboard` and bare `/admin` returned 404.
 - **Registration**: Public registration (`/register`) defaults to the `user` role and has no role selection field to maintain security.
 
 ---
@@ -331,11 +368,12 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 ## 11. Deployment & Setup Details
 1.  **Dependencies**: `composer install` && `npm install`.
 2.  **Environment**: Configure `.env` with MySQL credentials and `APP_URL`.
-3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin).
-4.  **Breeze Install**: `composer require laravel/breeze --dev` → `php artisan breeze:install blade` (adds auth controllers, views, routes, and ProfileController).
-5.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
-6.  **Storage**: `php artisan storage:link` (Critical for image visibility).
-7.  **Build**: `npm run dev` (Development) or `npm run build` (Production).
+3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin — user `admin@examcraft.com` with role `admin`).
+4.  **Breeze Install**: Already installed. `composer require laravel/breeze --dev` → `php artisan breeze:install blade` (adds auth controllers, views, routes, and ProfileController). If re-installing, Breeze must NOT be allowed to overwrite `routes/web.php` or `resources/css/app.css` — both have been customized post-install.
+5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects to `'/'` not `route('dashboard')`, (c) `bootstrap/app.php` has `$middleware->redirectUsersTo('/')`, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
+6.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
+7.  **Storage**: `php artisan storage:link` (Critical for image visibility).
+8.  **Build**: `npm run dev` (Development with HMR on `http://127.0.0.1:5173`) or `npm run build` (Production Vite bundle). Vite dev server is configured with `host: '127.0.0.1'` and `cors: true` in `vite.config.js`.
 
 ---
-*Last Updated: August 10, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 11, 2026 by ExamCraft AI Assistant*

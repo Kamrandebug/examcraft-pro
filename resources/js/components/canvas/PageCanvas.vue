@@ -46,12 +46,14 @@
 
       <div v-if="examStore.paperMeta.materials" style="margin-top:10px;font-family:var(--paper-font-family);font-size:var(--paper-opt-font-size);">
         <table style="border-collapse:collapse;width:100%;">
-          <tr>
-            <td style="padding:1px 0;vertical-align:top;width:140px;color:#222;">
-              {{ examStore.paperMeta.materialsLabel || 'Additional Materials:' }}
-            </td>
-            <td style="padding:1px 0 1px 6px;color:#222;" v-html="examStore.paperMeta.materials"></td>
-          </tr>
+          <tbody>
+            <tr>
+              <td style="padding:1px 0;vertical-align:top;width:140px;color:#222;">
+                {{ examStore.paperMeta.materialsLabel || 'Additional Materials:' }}
+              </td>
+              <td style="padding:1px 0 1px 6px;color:#222;" v-html="examStore.paperMeta.materials"></td>
+            </tr>
+          </tbody>
         </table>
       </div>
 

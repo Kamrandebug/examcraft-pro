@@ -94,23 +94,25 @@
       <button class="user-avatar" @click="toggleUserDropdown" :title="userName" type="button">
         {{ userInitials }}
       </button>
-      
-      <div class="user-dropdown-menu" v-if="showUserDropdown">
-        <div class="user-info">
-          <div class="user-name">{{ userName }}</div>
-          <div class="user-email">{{ userEmail }}</div>
+
+      <Teleport to="body">
+        <div class="user-dropdown-menu" v-if="showUserDropdown" :style="dropdownStyle">
+          <div class="user-info">
+            <div class="user-name">{{ userName }}</div>
+            <div class="user-email">{{ userEmail }}</div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <button class="logout-btn" @click="logout">
+            <i class="fa fa-sign-out-alt"></i> Logout
+          </button>
         </div>
-        <div class="dropdown-divider"></div>
-        <button class="logout-btn" @click="logout">
-          <i class="fa fa-sign-out-alt"></i> Logout
-        </button>
-      </div>
+      </Teleport>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import { useExamStore } from '../stores/examStore';
 import { useUiStore } from '../stores/uiStore';
 import { useBlockOperations } from '../composables/useBlockOperations';
@@ -133,6 +135,20 @@ const showUserDropdown = ref(false);
 const userName = window.authUser?.name || 'User';
 const userEmail = window.authUser?.email || '';
 
+const dropdownStyle = reactive({
+    position: 'fixed',
+    top: '0px',
+    right: '0px',
+});
+
+function recalcDropdownPosition() {
+    if (userDropdownRef.value) {
+        const rect = userDropdownRef.value.getBoundingClientRect();
+        dropdownStyle.top = (rect.bottom + 4) + 'px';
+        dropdownStyle.right = (window.innerWidth - rect.right) + 'px';
+    }
+}
+
 const userInitials = computed(() => {
     if (!userName) return 'U';
     const parts = userName.trim().split(/\s+/);
@@ -151,6 +167,9 @@ function toggleThemeDropdown(event) {
 
 function toggleUserDropdown() {
     showUserDropdown.value = !showUserDropdown.value;
+    if (showUserDropdown.value) {
+        nextTick(() => recalcDropdownPosition());
+    }
 }
 
 function openProjectManager() {
@@ -170,9 +189,12 @@ async function importProjectJSON(event) {
 }
 
 const handleOutsideClick = (event) => {
-    if (userDropdownRef.value && !userDropdownRef.value.contains(event.target)) {
-        showUserDropdown.value = false;
-    }
+    if (!showUserDropdown.value) return;
+    // Check if click is on the avatar button (inside userDropdownRef)
+    if (userDropdownRef.value && userDropdownRef.value.contains(event.target)) return;
+    // Check if click is on the teleported dropdown menu
+    if (event.target.closest('.user-dropdown-menu')) return;
+    showUserDropdown.value = false;
 };
 
 onMounted(() => {

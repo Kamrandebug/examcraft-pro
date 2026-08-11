@@ -24,15 +24,13 @@ use Illuminate\Support\Facades\Route;
 // ── Root Route: landing page for guests, SPA for authenticated users ──────
 Route::get('/', function () {
     if (auth()->check()) {
-        return app(ExamCraftController::class)->index();
+        return view('app');
     }
     return view('landing');
 })->name('home');
 
-// ── Breeze Dashboard ──────────────────────────────────────────────────────
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// ── Breeze Dashboard → redirect to SPA ────────────────────────────────────
+Route::get('/dashboard', fn () => redirect('/'))->middleware('auth')->name('dashboard');
 
 // ── Breeze Profile Routes ─────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
@@ -43,6 +41,7 @@ Route::middleware('auth')->group(function () {
 
 // ── Admin Panel (Auth + Admin Middleware) ─────────────────────────────────
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('/', fn () => redirect()->route('admin.dashboard'));
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
     Route::resource('users', UserController::class);
