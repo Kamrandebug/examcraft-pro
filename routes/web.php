@@ -55,6 +55,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::resource('papers.topics', ExamPaperTopicController::class);
 });
 
+// ── SPA API Routes (Auth protected, session cookie) ───────────────────────
+Route::get('/api/question-bank/filter', [QuestionBankController::class, 'filter'])->middleware('auth');
+
 // ── SPA Catch-All Route (Auth protected) ──────────────────────────────────
 Route::middleware(['auth'])->group(function () {
     Route::get('/app/{any?}', [ExamCraftController::class, 'index'])

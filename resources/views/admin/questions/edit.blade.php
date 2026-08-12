@@ -20,6 +20,31 @@
                     <h3 class="card-title">Edit Question</h3>
                 </div>
                 <div class="card-body">
+                    <div class="form-group row">
+                        <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
+                        <div class="col-sm-4">
+                            <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
+                                <option value="">— Select Grade —</option>
+                                @foreach(['O Level','A Level','8th Grade','9th Grade','10th Grade'] as $g)
+                                    <option value="{{ $g }}" {{ old('grade', $question->grade) == $g ? 'selected' : '' }}>{{ $g }}</option>
+                                @endforeach
+                            </select>
+                            @error('grade')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
+                        <div class="col-sm-4">
+                            <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required>
+                                <option value="">— Select Subject —</option>
+                            </select>
+                            @error('subject')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="question_text">Question Text <span class="text-danger">*</span></label>
                         <textarea name="question_text" id="question_text" class="form-control @error('question_text') is-invalid @enderror" rows="4" required>{{ old('question_text', $question->question_text) }}</textarea>
@@ -31,14 +56,19 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="subject">Subject</label>
-                                <input type="text" name="subject" id="subject" class="form-control" value="{{ old('subject', $question->subject) }}">
+                                <label for="topic">Topic</label>
+                                <input type="text" name="topic" id="topic" class="form-control" value="{{ old('topic', $question->topic) }}">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="topic">Topic</label>
-                                <input type="text" name="topic" id="topic" class="form-control" value="{{ old('topic', $question->topic) }}">
+                                <label for="difficulty">Difficulty</label>
+                                <select name="difficulty" id="difficulty" class="form-control">
+                                    <option value="">— Select —</option>
+                                    <option value="easy" {{ old('difficulty', $question->difficulty) == 'easy' ? 'selected' : '' }}>Easy</option>
+                                    <option value="medium" {{ old('difficulty', $question->difficulty) == 'medium' ? 'selected' : '' }}>Medium</option>
+                                    <option value="hard" {{ old('difficulty', $question->difficulty) == 'hard' ? 'selected' : '' }}>Hard</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -52,17 +82,6 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label for="difficulty">Difficulty</label>
-                                <select name="difficulty" id="difficulty" class="form-control">
-                                    <option value="">— Select —</option>
-                                    <option value="easy" {{ old('difficulty', $question->difficulty) == 'easy' ? 'selected' : '' }}>Easy</option>
-                                    <option value="medium" {{ old('difficulty', $question->difficulty) == 'medium' ? 'selected' : '' }}>Medium</option>
-                                    <option value="hard" {{ old('difficulty', $question->difficulty) == 'hard' ? 'selected' : '' }}>Hard</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
                                 <label for="option_type">Type</label>
                                 <select name="option_type" id="option_type" class="form-control">
                                     <option value="">— Select —</option>
@@ -71,15 +90,15 @@
                                 </select>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-group">
                                 <label for="correct_answer">Correct Answer</label>
                                 <input type="text" name="correct_answer" id="correct_answer" class="form-control" maxlength="10" value="{{ old('correct_answer', $question->correct_answer) }}">
                             </div>
                         </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="question_image">Question Image</label>
@@ -123,6 +142,38 @@
         if (typeof bsCustomFileInput !== 'undefined') {
             bsCustomFileInput.init();
         }
+
+        const gradeSubjects = {
+            'O Level':   ['Physics','Chemistry','Biology','Mathematics','Computer Science','English Language','Urdu','Islamiyat','Pakistan Studies','Economics','Commerce','Accounting'],
+            'A Level':   ['Physics','Chemistry','Biology','Mathematics','Further Mathematics','Computer Science','Economics','Psychology'],
+            '8th Grade': ['General Science','Mathematics','Urdu','English','Social Studies','Islamiyat','Pakistan Studies'],
+            '9th Grade': ['Physics','Chemistry','Biology','Mathematics','Computer Science','Urdu','English','Islamiyat','Pakistan Studies'],
+            '10th Grade':['Physics','Chemistry','Biology','Mathematics','Computer Science','Urdu','English','Islamiyat','Pakistan Studies'],
+        };
+
+        const $gradeE   = $('#grade');
+        const $subjectE = $('#subject');
+        const currentGrade   = '{!! addslashes(old('grade', $question->grade ?? '')) !!}';
+        const currentSubject = '{!! addslashes(old('subject', $question->subject ?? '')) !!}';
+
+        function populateEditSubjects(grade, preselect) {
+            $subjectE.empty().append('<option value="">— Select Subject —</option>');
+            if (!grade || !gradeSubjects[grade]) {
+                $subjectE.prop('disabled', true);
+                return;
+            }
+            gradeSubjects[grade].forEach(function (sub) {
+                const selected = (sub === preselect) ? ' selected' : '';
+                $subjectE.append('<option value="' + sub + '"' + selected + '>' + sub + '</option>');
+            });
+            $subjectE.prop('disabled', false);
+        }
+
+        populateEditSubjects(currentGrade, currentSubject);
+
+        $gradeE.on('change', function () {
+            populateEditSubjects($(this).val(), '');
+        });
     });
 
     function previewEditImage(input) {

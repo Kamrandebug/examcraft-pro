@@ -1,12 +1,17 @@
 <template>
   <div id="topbar">
     <div class="topbar-scroll">
+    <!-- Back to Home -->
+    <button class="tb-icon home-btn" data-tip="Back to Home" @click="uiStore.setView('home')">
+      <i class="fa fa-arrow-left"></i>
+    </button>
+
     <!-- Brand -->
     <div class="brand">ExamCraft <span>Pro v36</span></div>
     <span class="autosave-badge" :class="{ show: uiStore.showSavedBadge }" id="autosave-badge">
       <i class="fa fa-circle-check"></i> Saved
     </span>
-    
+
     <div class="topbar-sep"></div>
 
     <!-- Paper title -->

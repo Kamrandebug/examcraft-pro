@@ -19,6 +19,9 @@ import ResizeHandle from './components/ui/ResizeHandle.vue';
 import ProjectManagerModal from './components/modals/ProjectManagerModal.vue';
 import PreviewOverlay from './components/modals/PreviewOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
+import HomeScreen from './views/HomeScreen.vue';
+import AutoPaperGenerator from './views/AutoPaperGenerator.vue';
+import AutoPaperPreview from './views/AutoPaperPreview.vue';
 
 const uiStore = useUiStore();
 const examStore = useExamStore();
@@ -74,45 +77,41 @@ watchEffect(() => {
 
 <template>
   <div id="app" :data-theme="uiStore.theme" style="display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden;">
-    <TopBar />
-    
-    <div id="main">
-      <!-- Left collapse strip -->
-      <div class="panel-strip left-strip" id="left-strip" :class="{ visible: uiStore.leftCollapsed }">
-        <button class="strip-toggle-btn" @click="togglePanel('left')">
-          <i class="fa fa-chevron-right"></i>
-        </button>
-        <span class="strip-label">Paper Designer</span>
+    <template v-if="uiStore.currentView === 'manual'">
+      <TopBar />
+      <div id="main">
+        <div class="panel-strip left-strip" id="left-strip" :class="{ visible: uiStore.leftCollapsed }">
+          <button class="strip-toggle-btn" @click="togglePanel('left')">
+            <i class="fa fa-chevron-right"></i>
+          </button>
+          <span class="strip-label">Paper Designer</span>
+        </div>
+
+        <LeftPanel v-show="!uiStore.leftCollapsed" />
+        <VerticalRuler side="left" />
+        <ResizeHandle side="left" id="resize-left" />
+        <CanvasArea />
+        <ResizeHandle side="right" id="resize-right" />
+        <VerticalRuler side="right" />
+        <RightPanel v-show="!uiStore.rightCollapsed" />
+
+        <div class="panel-strip right-strip" id="right-strip" :class="{ visible: uiStore.rightCollapsed }">
+          <button class="strip-toggle-btn" @click="togglePanel('right')">
+            <i class="fa fa-chevron-left"></i>
+          </button>
+          <span class="strip-label">Properties</span>
+        </div>
       </div>
 
-      <LeftPanel v-show="!uiStore.leftCollapsed" />
-      
-      <VerticalRuler side="left" />
+      <ProjectManagerModal />
+      <PreviewOverlay />
+      <ToastContainer />
+      <div id="tb-tooltip"></div>
+    </template>
 
-      <ResizeHandle side="left" id="resize-left" />
-
-      <CanvasArea />
-
-      <ResizeHandle side="right" id="resize-right" />
-
-      <VerticalRuler side="right" />
-
-      <RightPanel v-show="!uiStore.rightCollapsed" />
-
-      <!-- Right collapse strip -->
-      <div class="panel-strip right-strip" id="right-strip" :class="{ visible: uiStore.rightCollapsed }">
-        <button class="strip-toggle-btn" @click="togglePanel('right')">
-          <i class="fa fa-chevron-left"></i>
-        </button>
-        <span class="strip-label">Properties</span>
-      </div>
-    </div>
-
-    <ProjectManagerModal />
-    <PreviewOverlay />
-    <ToastContainer />
-    
-    <div id="tb-tooltip"></div>
+    <HomeScreen v-else-if="uiStore.currentView === 'home'" />
+    <AutoPaperGenerator v-else-if="uiStore.currentView === 'auto'" />
+    <AutoPaperPreview v-else-if="uiStore.currentView === 'auto-preview'" />
   </div>
 </template>
 

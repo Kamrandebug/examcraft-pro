@@ -81,19 +81,25 @@
                 <hr>
 
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label><strong>Grade</strong></label>
+                            <p>{{ $question->grade ?? '—' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
                         <div class="form-group">
                             <label><strong>Subject</strong></label>
                             <p>{{ $question->subject ?? '—' }}</p>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="form-group">
                             <label><strong>Topic</strong></label>
                             <p>{{ $question->topic ?? '—' }}</p>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="form-group">
                             <label><strong>Marks</strong></label>
                             <p>{{ $question->marks ?? '—' }}</p>

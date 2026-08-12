@@ -17,6 +17,11 @@ export const useUiStore = defineStore('ui', () => {
     const showSavedBadge = ref(false);
     const footerShowPageNum = ref(true);
     const toasts = ref([]);
+    const currentView = ref('home');
+
+    function setView(view) {
+        currentView.value = view;
+    }
 
     return {
         currentZoom,
@@ -32,6 +37,8 @@ export const useUiStore = defineStore('ui', () => {
         showThemeDropdown,
         showUserDropdown,
         showSavedBadge,
-        toasts
+        toasts,
+        currentView,
+        setView,
     };
 });

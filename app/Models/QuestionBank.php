@@ -17,6 +17,7 @@ class QuestionBank extends Model
         'session',
         'year',
         'subject',
+        'grade',
         'topic',
         'difficulty',
         'question_text',

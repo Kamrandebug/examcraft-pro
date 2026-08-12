@@ -33,6 +33,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Grade</th>
                             <th>Question</th>
                             <th>Subject</th>
                             <th>Topic</th>
@@ -46,6 +47,7 @@
                             @foreach($questions as $question)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
+                                <td>{{ $question->grade ?? '—' }}</td>
                                 <td>{{ Str::limit(strip_tags($question->question_text), 100) }}</td>
                                 <td>{{ $question->subject }}</td>
                                 <td>{{ $question->topic }}</td>

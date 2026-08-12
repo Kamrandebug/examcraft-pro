@@ -38,6 +38,9 @@ class QuestionBankController extends Controller
             'question_text' => 'required_without:question_image',
             'question_image' => 'required_without:question_text|image|max:2048',
 
+            'grade'   => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
+            'subject' => 'required|string|max:100',
+
             // Options A-D are mandatory: text or image required for each.
             'options.A.text' => 'required_without:options.A.image',
             'options.A.image' => 'required_without:options.A.text|image|max:2048',
@@ -57,7 +60,7 @@ class QuestionBankController extends Controller
             'correct_option' => 'required|in:A,B,C,D,E,F',
         ]);
 
-        $data = $request->only(['question_text']);
+        $data = $request->only(['question_text', 'grade', 'subject']);
         // Temporarily fallback to first user if not authenticated since auth is disabled
         $data['user_id'] = Auth::id() ?? (\App\Models\User::first()->id ?? 1);
 
@@ -124,7 +127,8 @@ class QuestionBankController extends Controller
             'source_paper_code' => 'nullable|string|max:50',
             'session'           => 'nullable|string|max:50',
             'year'              => 'nullable|digits:4',
-            'subject'           => 'nullable|string|max:255',
+            'grade'             => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
+            'subject'           => 'required|string|max:100',
             'topic'             => 'nullable|string|max:255',
             'difficulty'        => 'nullable|string|in:easy,medium,hard',
             'question_text'     => 'required|string',
@@ -154,5 +158,53 @@ class QuestionBankController extends Controller
 
         return redirect()->route('admin.questions.index')
                          ->with('success', 'Question deleted successfully.');
+    }
+
+    public function filter(Request $request)
+    {
+        $grade = $request->query('grade');
+        $subject = $request->query('subject');
+
+        if (!$grade || !$subject) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Grade and subject are required.',
+            ], 422);
+        }
+
+        $questions = QuestionBank::with('options')
+            ->where('grade', $grade)
+            ->where('subject', $subject)
+            ->get()
+            ->map(function ($q) {
+                $opt = $q->options->first();
+
+                $optionsList = [];
+                $letters = ['A', 'B', 'C', 'D'];
+
+                if ($opt) {
+                    foreach ($letters as $letter) {
+                        $lower = strtolower($letter);
+                        $text = $opt->{'option_' . $lower . '_text'} ?? null;
+                        if ($text !== null) {
+                            $optionsList[] = [
+                                'label' => $letter,
+                                'option_text' => $text,
+                            ];
+                        }
+                    }
+                }
+
+                return [
+                    'id'       => $q->id,
+                    'question' => $q->question_text,
+                    'options'  => $optionsList,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $questions,
+        ]);
     }
 }

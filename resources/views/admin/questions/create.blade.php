@@ -56,6 +56,33 @@
                     <div id="step-1">
                         <h5 class="mb-3">Step 1 of 2 — Question Details</h5>
 
+                        <div class="form-group row">
+                            <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
+                            <div class="col-sm-4">
+                                <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
+                                    <option value="">— Select Grade —</option>
+                                    <option value="O Level"   {{ old('grade') == 'O Level'    ? 'selected' : '' }}>O Level</option>
+                                    <option value="A Level"   {{ old('grade') == 'A Level'    ? 'selected' : '' }}>A Level</option>
+                                    <option value="8th Grade" {{ old('grade') == '8th Grade'  ? 'selected' : '' }}>8th Grade</option>
+                                    <option value="9th Grade" {{ old('grade') == '9th Grade'  ? 'selected' : '' }}>9th Grade</option>
+                                    <option value="10th Grade"{{ old('grade') == '10th Grade' ? 'selected' : '' }}>10th Grade</option>
+                                </select>
+                                @error('grade')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
+                            <div class="col-sm-4">
+                                <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required disabled>
+                                    <option value="">— Select Grade First —</option>
+                                </select>
+                                @error('subject')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label for="question_text">Question Text</label>
                             <textarea name="question_text" id="question_text" class="form-control @error('question_text') is-invalid @enderror" rows="5" placeholder="Enter question text here...">{{ old('question_text') }}</textarea>
@@ -282,6 +309,41 @@
                 $('#add-option-text').text('Add Option ' + optionLabels[visibleOptionCount]);
             }
         }
+
+        // ── Grade → Subject cascade ────────────────────────────────────────
+        const gradeSubjects = {
+            'O Level':   ['Physics','Chemistry','Biology','Mathematics','Computer Science','English Language','Urdu','Islamiyat','Pakistan Studies','Economics','Commerce','Accounting'],
+            'A Level':   ['Physics','Chemistry','Biology','Mathematics','Further Mathematics','Computer Science','Economics','Psychology'],
+            '8th Grade': ['General Science','Mathematics','Urdu','English','Social Studies','Islamiyat','Pakistan Studies'],
+            '9th Grade': ['Physics','Chemistry','Biology','Mathematics','Computer Science','Urdu','English','Islamiyat','Pakistan Studies'],
+            '10th Grade':['Physics','Chemistry','Biology','Mathematics','Computer Science','Urdu','English','Islamiyat','Pakistan Studies'],
+        };
+
+        const $grade   = $('#grade');
+        const $subject = $('#subject');
+        const oldGrade   = '{!! addslashes(old('grade', '')) !!}';
+        const oldSubject = '{!! addslashes(old('subject', '')) !!}';
+
+        function populateSubjects(grade, preselect) {
+            $subject.empty().append('<option value="">— Select Subject —</option>');
+            if (!grade || !gradeSubjects[grade]) {
+                $subject.prop('disabled', true);
+                return;
+            }
+            gradeSubjects[grade].forEach(function (sub) {
+                const selected = (sub === preselect) ? ' selected' : '';
+                $subject.append('<option value="' + sub + '"' + selected + '>' + sub + '</option>');
+            });
+            $subject.prop('disabled', false);
+        }
+
+        if (oldGrade) {
+            populateSubjects(oldGrade, oldSubject);
+        }
+
+        $grade.on('change', function () {
+            populateSubjects($(this).val(), '');
+        });
 
         // ── Image previews ──────────────────────────────────────────────────
         function previewImage(input, containerId) {

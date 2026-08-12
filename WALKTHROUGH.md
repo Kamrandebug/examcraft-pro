@@ -15,13 +15,14 @@ The project is built as a **Hybrid Full-Stack Application**:
 ### **Backend (Laravel 12)**
 - **Role**: Serves as the API layer, authentication provider, and host for the administration dashboard.
 - **Persistence**: MySQL (Server-side storage) + Eloquent ORM.
-- **Routing**: RESTful resource controllers with nested route model binding.
+- **Routing**: RESTful resource controllers with nested route model binding, plus API filter endpoints.
 - **Templating**: Laravel Blade (used for Auth pages and the Admin Dashboard).
 
 ### **Frontend (Vue 3 SPA)**
-- **Role**: The core "Exam Designer" interface.
+- **Role**: The core "Exam Designer" interface plus a Home Screen launcher and Auto Paper Generator wizard.
+- **View Switching**: Via Pinia `uiStore.currentView` — no Vue Router. Views: `home` (launcher), `manual` (canvas editor), `auto` (paper generator wizard), `auto-preview` (print preview).
 - **Architecture**: Composition API with modular components and composables.
-- **State Management**: Pinia (Local reactive stores).
+- **State Management**: Pinia — 5 stores: examStore (paper data), uiStore (UI state + view routing), typoStore (typography presets), projectStore (IndexedDB CRUD), autoPaperStore (paper generator wizard state).
 - **Persistence**: IndexedDB (via `projectStore`) for local-first, offline-capable project management.
 - **Build Tool**: Vite (handles HMR, asset bundling, and CSS processing).
 
@@ -29,6 +30,7 @@ The project is built as a **Hybrid Full-Stack Application**:
 - **UI**: Bootstrap 5 (SPA), Bootstrap 4 (AdminLTE Dashboard), Font Awesome 6.5.
 - **Interactions**: SortableJS (Drag & Drop), @vueuse/core (Debounced saving).
 - **Export**: jsPDF, html2canvas (PDF generation), QRCode.js.
+- **HTTP**: Axios (window.axios — globally available from bootstrap.js).
 
 ---
 
@@ -73,7 +75,7 @@ examcraft-pro/
 │   │   │   ├── McqBlockController.php          → Full CRUD for MCQ-specific block data
 │   │   │   ├── McqOptionController.php         → Nested CRUD (mcq-blocks.mcq-options)
 │   │   │   ├── ExamPaperTopicController.php    → Nested CRUD (exam-papers.topics)
-│   │   │   ├── QuestionBankController.php      → Full CRUD for question bank (admin & API routes)
+│   │   │   ├── QuestionBankController.php      → Full CRUD for question bank + filter() API method (grade+subject query)
 │   │   │   ├── QuestionBankOptionController.php → Nested CRUD (question-bank.options)
 │   │   │   └── Controller.php                  → Base controller
 │   │   └── Middleware/
@@ -95,9 +97,15 @@ examcraft-pro/
 │   ├── js/
 │   │   ├── app.js                            → Vue app entry point; initializes Pinia
 │   │   ├── App.vue                           → Root component; handles layout & auto-save
-│   │   ├── stores/                           → Pinia state (exam, ui, typo, project)
+│   │   ├── stores/
+│   │   │   ├── examStore.js                   → Paper metadata, blocks, pages, styling, selected block
+│   │   │   ├── uiStore.js                     → Zoom, panel widths, active tab, theme, toasts, currentView (SPA view routing)
+│   │   │   ├── typoStore.js                   → Typography settings + 6 Cambridge presets
+│   │   │   ├── projectStore.js                → IndexedDB CRUD, import/export
+│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, grade, subject, selectedMcqs, totalMarks)
 │   │   ├── composables/                      → Reusable logic (useZoom, useTypography, etc.)
-│   │   └── components/                       → UI components (Canvas, Panels, Blocks)
+│   │   ├── components/                       → UI components (Canvas, Panels, Blocks)
+│   │   └── views/                            → SPA top-level views (HomeScreen, AutoPaperGenerator, AutoPaperPreview)
 │   └── views/
 │       ├── admin/                            → Blade templates for Admin Dashboard
 │       │   ├── users/                        → User management views (index, create, edit, show)
@@ -112,12 +120,13 @@ examcraft-pro/
 │       │   ├── verify-email.blade.php          → Email verification notice
 │       │   └── confirm-password.blade.php      → Password confirmation gate
 │       ├── dashboard.blade.php                → Breeze authenticated dashboard
-│       ├── app.blade.php                     → SPA Shell (sanitizes window.authUser data)
+│       ├── app.blade.php                     → SPA Shell (injects window.authUser with nullsafe role)
 │       └── landing.blade.php                 → Marketing landing page (guests only)
 ├── routes/
-│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed + bare / redirect), and SPA routes
+│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed + bare / redirect), SPA catch-all
+│   ├── api.php                               → API routes for SPA (auto paper generator filter, etc.) — registered in bootstrap/app.php
 │   ├── auth.php                              → Breeze v2.4.2 authentication routes (login, register, password reset, email verification, confirm-password, logout)
-│   └── api.php                               → Stateless API routes
+│   └── console.php                           → Artisan console commands routing
 ├── storage/app/public/
 │   ├── questions/                            → Uploaded question images
 │   └── options/                              → Uploaded MCQ option images
@@ -141,6 +150,39 @@ The SPA uses a modular "Block" system where each part of an exam paper is a dist
 4.  **Image**: Independent image blocks with captions and width scaling.
 5.  **Table**: Dynamic row/column management with specialized variants for exam data.
 6.  **Divider**: Horizontal separators with customizable styles (solid/dashed/dotted).
+
+---
+## 4a. Auto Paper Generator (New — August 11, 2026)
+
+A wizard-based paper generation flow that sources MCQs from the server-side question bank.
+
+### View Flow
+```
+Login → HomeScreen → ┬→ "Create Manual Paper" → existing canvas editor
+                     └→ "Auto Paper Generator" → AutoPaperGenerator
+                         → AutoPaperPreview → Print
+```
+
+### Backend
+- **`routes/api.php`**: Created (did not exist before). Registered in `bootstrap/app.php` via `api:` routing.
+- **`GET /api/question-bank/filter?grade=X&subject=Y`**: Returns questions matching grade+subject with options reshaped from the wide-row `question_bank_options` table format into a structured array (`[{label: 'A', option_text: '...'}, ...]`).
+- **Migration `2026_08_11_000001_add_grade_to_question_bank_table.php`**: Added `grade` column (nullable string) after `subject` on `question_bank` table.
+- **`QuestionBank.php` model**: `'grade'` added to `$fillable`.
+
+### Frontend Stores
+- **`uiStore.js`** — `currentView: 'home'` state + `setView(view)` action (drives all view switching in App.vue).
+- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `selectedMcqs`. Getter: `totalMarks`. Actions: `setPaperMeta()`, `setSelectedMcqs()`, `reset()`.
+
+### View Components (`resources/js/views/`)
+| Component | View ID | Purpose |
+|-----------|---------|---------|
+| `HomeScreen.vue` | `home` | Two Bootstrap cards: "Create Manual Paper" (→ `manual`) and "Auto Paper Generator" (→ `auto`). Uses CSS custom properties for theming + inline SVG icons. |
+| `AutoPaperGenerator.vue` | `auto` | Paper settings form (title, school, date, grade, subject). Grade→subject cascading dropdowns from hardcoded mapping. "Load MCQs" fetches via `window.axios.get('/api/question-bank/filter')`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores selection in autoPaperStore and navigates to `auto-preview`. |
+| `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm, white with shadow) showing school name, exam header, Section A questions with A/B/C/D options. Action bar: "Edit Selection" (→ `auto`), "Print Paper" (`window.print()`), "Home" (resets store → `home`). Print CSS hides action bar. |
+
+### UI Updates
+- **`TopBar.vue`**: Added "Back to Home" button (left-arrow icon, first item in topbar) that calls `uiStore.setView('home')`.
+- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`. Three new views added via `v-else-if` chain. New view components imported: `HomeScreen`, `AutoPaperGenerator`, `AutoPaperPreview`.
 
 ---
 
@@ -368,12 +410,13 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 ## 11. Deployment & Setup Details
 1.  **Dependencies**: `composer install` && `npm install`.
 2.  **Environment**: Configure `.env` with MySQL credentials and `APP_URL`.
-3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin — user `admin@examcraft.com` with role `admin`).
+3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin — user `admin@examcraft.com` with role `admin`). This also runs the `add_grade_to_question_bank_table` migration for the auto paper generator.
 4.  **Breeze Install**: Already installed. `composer require laravel/breeze --dev` → `php artisan breeze:install blade` (adds auth controllers, views, routes, and ProfileController). If re-installing, Breeze must NOT be allowed to overwrite `routes/web.php` or `resources/css/app.css` — both have been customized post-install.
-5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects to `'/'` not `route('dashboard')`, (c) `bootstrap/app.php` has `$middleware->redirectUsersTo('/')`, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
+5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects to `'/'` not `route('dashboard')`, (c) `bootstrap/app.php` has `$middleware->redirectUsersTo('/')` AND registers `api:` routing, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
 6.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
 7.  **Storage**: `php artisan storage:link` (Critical for image visibility).
 8.  **Build**: `npm run dev` (Development with HMR on `http://127.0.0.1:5173`) or `npm run build` (Production Vite bundle). Vite dev server is configured with `host: '127.0.0.1'` and `cors: true` in `vite.config.js`.
+9.  **Auto Paper Generator — Seeding Test Data**: The generator pulls from the `question_bank` table. Seed questions via the Admin Dashboard (`/admin/dashboard` → Question Bank → Add Question) with grade and subject set. The API endpoint (`/api/question-bank/filter?grade=X&subject=Y`) returns questions with options reshaped from the wide-row format.
 
 ---
 *Last Updated: August 11, 2026 by ExamCraft AI Assistant*
