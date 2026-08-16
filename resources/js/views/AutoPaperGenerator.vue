@@ -181,14 +181,14 @@ const gradeSubjects = {
 
 const gradeList = Object.keys(gradeSubjects);
 
-const paperTitle = ref('');
-const schoolName = ref('');
-const paperDate = ref('');
-const selectedGrade = ref('');
-const selectedSubject = ref('');
-const paperCode = ref('');
-const session = ref('');
-const duration = ref('');
+const paperTitle = ref(autoPaperStore.paperTitle);
+const schoolName = ref(autoPaperStore.schoolName);
+const paperDate = ref(autoPaperStore.paperDate);
+const selectedGrade = ref(autoPaperStore.grade);
+const selectedSubject = ref(autoPaperStore.subject);
+const paperCode = ref(autoPaperStore.paperCode);
+const session = ref(autoPaperStore.session);
+const duration = ref(autoPaperStore.duration);
 const additionalMaterials = ref(autoPaperStore.additionalMaterials);
 const instructions = ref(autoPaperStore.instructions);
 const logoDataUrl = ref(autoPaperStore.logoDataUrl);
@@ -270,14 +270,53 @@ function pickLogo() {
 function onLogoChange(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
+  resizeLogo(file).then((dataUrl) => {
     logoDataUrl.value = dataUrl;
     autoPaperStore.setLogo({ file, dataUrl });
-  };
-  reader.readAsDataURL(file);
+  });
   event.target.value = '';
+}
+
+/**
+ * Downscale the logo to a bounded size (max 300px on the longest edge) and
+ * re-encode as a JPEG data URL. Storing the raw full-resolution PNG as a
+ * base64 string bloats `paper_data` beyond MySQL's `max_allowed_packet`,
+ * which makes saving fail with a 500. JPEG is far smaller for photographic
+ * logos and is fine for a paper header thumbnail.
+ */
+function resizeLogo(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 300;
+        let { width, height } = img;
+        const scale = Math.min(1, MAX / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Prefer JPEG; fall back to PNG if the source has transparency.
+        let dataUrl;
+        try {
+          dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        } catch {
+          dataUrl = canvas.toDataURL('image/png');
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
 }
 
 function removeLogo() {
@@ -395,6 +434,15 @@ onMounted(() => {
   const paperId = params.get('paper_id');
   if (paperId) {
     loadPaperForEdit(paperId);
+  } else {
+    // Restore the persisted selection after a refresh: re-fetch the matching
+    // questions and re-check the previously selected ones.
+    const persisted = autoPaperStore.selectedMcqs || [];
+    if (selectedGrade.value && selectedSubject.value && persisted.length) {
+      loadMcqs(persisted.map((q) => q.id));
+    } else if (selectedGrade.value && selectedSubject.value) {
+      loadMcqs();
+    }
   }
 });
 

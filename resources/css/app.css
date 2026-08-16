@@ -1242,3 +1242,82 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
 /* Fix Alpine [x-cloak] hidden elements */
 [x-cloak] { display: none !important; }
+
+/* =================================================================
+   PRINT — Auto Paper export (window.print)
+   ================================================================= */
+/* The #app wrapper (App.vue) is inline-styled with overflow:hidden and
+   height:100vh, which clips print output to ~one screen height. Reset
+   html/body/#app so the printer captures the full paper. This is a global
+   stylesheet, so it can target #app (scoped component styles cannot). */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #app {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Hide SPA chrome — only the paper should print. */
+  .topbar,
+  .ap-action-bar,
+  nav,
+  aside,
+  .sidebar,
+  .panel,
+  header {
+    display: none !important;
+  }
+
+  .auto-preview {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* .ap-scroll WRAPS the paper, so it must stay visible and un-clipped. */
+  .ap-scroll {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .ap-paper-sheet {
+    width: 210mm !important;
+    height: auto !important;
+    min-height: 297mm !important;
+    overflow: visible !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    padding: 20mm 15mm !important;
+  }
+
+  /* Questions — never clip mid-question. */
+  .ap-q-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Option images — keep visible and sized for print. */
+  .ap-q-opt-img,
+  .ap-q-stem-img {
+    display: inline-block !important;
+    visibility: visible !important;
+    max-height: 80px !important;
+    max-width: 100px !important;
+    object-fit: contain !important;
+  }
+}

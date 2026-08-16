@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const DEFAULT_INSTRUCTIONS = `Write in soft pencil.
 Do not use staples, paper clips, glue or correction fluid.
@@ -19,22 +19,79 @@ const DEFAULT_ADDITIONAL_MATERIALS = `Multiple Choice Answer Sheet
 Soft clean eraser
 Soft pencil (type B or HB is recommended)`;
 
+const STORAGE_KEY = 'examcraft.autoPaper';
+
+/**
+ * Read previously persisted paper settings (survives page refreshes).
+ */
+function loadPersisted() {
+    try {
+        if (typeof localStorage === 'undefined') return null;
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
 export const useAutoPaperStore = defineStore('autoPaper', () => {
-    const paperTitle = ref('');
-    const schoolName = ref('');
-    const paperDate = ref('');
-    const grade = ref('');
-    const subject = ref('');
-    const paperCode = ref('');
-    const session = ref('');
-    const duration = ref('');
-    const additionalMaterials = ref(DEFAULT_ADDITIONAL_MATERIALS);
-    const instructions = ref(DEFAULT_INSTRUCTIONS);
+    const saved = loadPersisted();
+
+    const paperTitle = ref(saved?.paperTitle ?? '');
+    const schoolName = ref(saved?.schoolName ?? '');
+    const paperDate = ref(saved?.paperDate ?? '');
+    const grade = ref(saved?.grade ?? '');
+    const subject = ref(saved?.subject ?? '');
+    const paperCode = ref(saved?.paperCode ?? '');
+    const session = ref(saved?.session ?? '');
+    const duration = ref(saved?.duration ?? '');
+    const additionalMaterials = ref(saved?.additionalMaterials ?? DEFAULT_ADDITIONAL_MATERIALS);
+    const instructions = ref(saved?.instructions ?? DEFAULT_INSTRUCTIONS);
     const logoFile = ref(null);
-    const logoDataUrl = ref(null);
-    const selectedMcqs = ref([]);
+    const logoDataUrl = ref(saved?.logoDataUrl ?? null);
+    const selectedMcqs = ref(saved?.selectedMcqs ?? []);
 
     const totalMarks = computed(() => selectedMcqs.value.length);
+
+    // Persist every change so a refresh keeps the wizard state intact.
+    watch(
+        [
+            paperTitle,
+            schoolName,
+            paperDate,
+            grade,
+            subject,
+            paperCode,
+            session,
+            duration,
+            additionalMaterials,
+            instructions,
+            logoDataUrl,
+            selectedMcqs,
+        ],
+        () => {
+            try {
+                if (typeof localStorage === 'undefined') return;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    paperTitle: paperTitle.value,
+                    schoolName: schoolName.value,
+                    paperDate: paperDate.value,
+                    grade: grade.value,
+                    subject: subject.value,
+                    paperCode: paperCode.value,
+                    session: session.value,
+                    duration: duration.value,
+                    additionalMaterials: additionalMaterials.value,
+                    instructions: instructions.value,
+                    logoDataUrl: logoDataUrl.value,
+                    selectedMcqs: selectedMcqs.value,
+                }));
+            } catch {
+                // Ignore write failures (private mode, quota, etc.).
+            }
+        },
+        { deep: true }
+    );
 
     function setPaperMeta({
         title,

@@ -4,7 +4,7 @@
       <div class="home-header">
         <h2 class="home-title">ExamCraft Pro</h2>
         <p class="home-subtitle">Professional Exam Authoring</p>
-        <a v-if="window.authUser?.role !== 'admin'" href="/user/dashboard" class="home-dashboard-link">
+        <a v-if="isUser" href="/user/dashboard" class="home-dashboard-link">
           <i class="fa fa-th-large"></i> Back to My Dashboard
         </a>
       </div>
@@ -53,9 +53,13 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { useUiStore } from '../stores/uiStore';
 
 const uiStore = useUiStore();
+
+// `window` is not available in template render scope — resolve it here.
+const isUser = computed(() => (window.authUser?.role ?? 'user') !== 'admin');
 </script>
 
 <style scoped>

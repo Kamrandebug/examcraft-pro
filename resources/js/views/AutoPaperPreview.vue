@@ -70,7 +70,7 @@
 
           <!-- Row 9: footer note -->
           <div class="ap-footer-note">
-            <div class="ap-footer-pages">This document consists of {{ pageCount }} printed pages and 2 blank pages.</div>
+            <div class="ap-footer-pages">Answer all {{ autoPaperStore.selectedMcqs.length }} questions.</div>
             <div class="ap-footer-code">{{ autoPaperStore.paperCode }}&nbsp;&nbsp;{{ autoPaperStore.session }}</div>
           </div>
         </div>
@@ -90,17 +90,23 @@
                 <img
                   v-if="mcq.stem_image"
                   :src="mcq.stem_image"
-                  style="max-width:100%; max-height:150px; display:block; margin: 8px 0 12px 0; border:1px solid #ddd;"
+                  class="ap-q-stem-img"
                   alt="Question image"
                 />
               </div>
               <div class="ap-q-options">
-                <div class="ap-q-opt" v-for="opt in mcq.options" :key="opt.label">
-                  <b>{{ opt.label }}</b>&nbsp;{{ opt.text }}
+                <div
+                  class="ap-q-opt"
+                  :class="{ 'ap-q-opt--with-img': opt.image }"
+                  v-for="opt in mcq.options"
+                  :key="opt.label"
+                >
+                  <b class="ap-q-opt-label">{{ opt.label }}</b>
+                  <span class="ap-q-opt-text">{{ opt.text }}</span>
                   <img
                     v-if="opt.image"
                     :src="opt.image"
-                    style="max-height:80px; max-width:100%; display:block; margin: 4px 0 4px 24px; border:1px solid #ddd;"
+                    class="ap-q-opt-img"
                     alt="Option image"
                   />
                 </div>
@@ -141,7 +147,6 @@ const instructionsHtml = computed(() => {
     .replace(/>/g, '&gt;');
 
   const keywords = [
-    'forty',
     'all',
     'A',
     'B',
@@ -157,7 +162,9 @@ const instructionsHtml = computed(() => {
     'Electronic calculators',
   ];
 
-  let html = escaped;
+  // Replace the hardcoded "forty" with the actual number of selected MCQs.
+  const count = autoPaperStore.selectedMcqs.length;
+  let html = escaped.replace(/\bforty\b/gi, String(count));
   keywords.forEach((kw) => {
     const re = new RegExp('\\b' + escapeRegExp(kw) + '\\b', 'g');
     html = html.replace(re, (match) => `<strong>${match}</strong>`);
@@ -169,11 +176,6 @@ const instructionsHtml = computed(() => {
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-
-const pageCount = computed(() => {
-  const q = autoPaperStore.selectedMcqs.length || 0;
-  return Math.max(18, Math.ceil(q / 10) + 16);
-});
 
 async function savePaper() {
   isSaving.value = true;
@@ -197,7 +199,7 @@ async function savePaper() {
         duration: autoPaperStore.duration,
         additionalMaterials: autoPaperStore.additionalMaterials,
         instructions: autoPaperStore.instructions,
-        logoDataUrl: autoPaperStore.logoDataUrl,
+        logoDataUrl: await shrinkLogoDataUrl(autoPaperStore.logoDataUrl),
         selectedMcqs: autoPaperStore.selectedMcqs,
       },
     };
@@ -216,6 +218,41 @@ async function savePaper() {
   } finally {
     isSaving.value = false;
   }
+}
+
+/**
+ * Re-encode an already-persisted logo data URL (which may be a large raw
+ * base64 PNG from before the downscale fix) into a small JPEG. Returns the
+ * URL unchanged if it is not an image or cannot be resized.
+ */
+function shrinkLogoDataUrl(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:image')) {
+    return Promise.resolve(dataUrl);
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 300;
+      let { width, height } = img;
+      const scale = Math.min(1, MAX / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      try {
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch {
+        resolve(canvas.toDataURL('image/png'));
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 function printPaper() {
@@ -282,11 +319,14 @@ function goHome() {
   padding: 24px;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 
 .ap-paper-sheet {
   width: 210mm;
   min-height: 297mm;
+  height: auto;
+  overflow: visible;
   background: #fff;
   box-shadow: var(--shadow-lg);
   border-radius: 2px;
@@ -442,43 +482,60 @@ function goHome() {
   line-height: var(--paper-line-height, 1.5);
 }
 
+.ap-q-stem-img {
+  max-width: 200px;
+  max-height: 150px;
+  display: block;
+  margin: 8px 0 12px 0;
+  border: 1px solid #ddd;
+  filter: none;
+}
+
 .ap-q-options {
   margin-left: 20px;
 }
 
+/* Text-only option: keep the original inline layout. */
 .ap-q-opt {
   font-size: var(--paper-opt-font-size, 10pt);
   margin-bottom: 1px;
   line-height: 1.6;
 }
-</style>
 
-<style>
-@page {
-  size: A4;
-  margin: 20mm;
+/* Option with an image: [label] [text] [thumbnail] on one flex row,
+   constrained to the full width of the options container so the image
+   never escapes the white paper boundary. */
+.ap-q-opt--with-img {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-@media print {
-  .ap-action-bar {
-    display: none !important;
-  }
-  body {
-    background: white !important;
-  }
-  .auto-preview {
-    background: white !important;
-  }
-  .ap-scroll {
-    padding: 0 !important;
-  }
-  .ap-paper-sheet {
-    box-shadow: none !important;
-    border: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: auto !important;
-    min-height: 0 !important;
-  }
+.ap-q-opt-label {
+  white-space: nowrap;
+}
+
+.ap-q-opt-text {
+  display: inline;
+}
+
+.ap-q-opt--with-img .ap-q-opt-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ap-q-opt-img {
+  flex-shrink: 0;
+  max-height: 60px;
+  max-width: 120px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  filter: none;
 }
 </style>

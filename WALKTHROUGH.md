@@ -18,17 +18,17 @@ ExamCraft Pro is a professional exam paper authoring tool designed for educators
 The project is built as a **Hybrid Full-Stack Application**:
 
 ### **Backend (Laravel 12)**
-- **Role**: Serves as the API layer, authentication provider, and host for the administration dashboard.
+- **Role**: Serves as the API layer, authentication provider, and host for **two** server-side dashboards — the admin panel and a user-facing "My Papers" dashboard — plus a set of SPA data APIs.
 - **Persistence**: MySQL (Server-side storage) + Eloquent ORM.
-- **Routing**: RESTful resource controllers with nested route model binding, plus API filter endpoints.
-- **Templating**: Laravel Blade (used for Auth pages and the Admin Dashboard).
+- **Routing**: RESTful resource controllers with nested route model binding, a role-aware root route, SPA launcher routes, and JSON API endpoints for the Vue SPA.
+- **Templating**: Laravel Blade (used for Auth pages, the Admin Dashboard, and the User Dashboard).
 
 ### **Frontend (Vue 3 SPA)**
 - **Role**: The core "Exam Designer" interface plus a Home Screen launcher and Auto Paper Generator wizard.
 - **View Switching**: Via Pinia `uiStore.currentView` — no Vue Router. Views: `home` (launcher), `manual` (canvas editor), `auto` (paper generator wizard), `auto-preview` (print preview).
 - **Architecture**: Composition API with modular components and composables.
 - **State Management**: Pinia — 5 stores: examStore (paper data), uiStore (UI state + view routing), typoStore (typography presets), projectStore (IndexedDB CRUD), autoPaperStore (paper generator wizard state).
-- **Persistence**: IndexedDB (via `projectStore`) for local-first, offline-capable project management.
+- **Persistence**: IndexedDB (via `projectStore`) for local-first, offline-capable project management, plus server-side "My Papers" persistence (via the `/api/user/*` endpoints + Blade dashboard).
 - **Build Tool**: Vite (handles HMR, asset bundling, and CSS processing).
 
 ### **Key Dependencies**
@@ -44,8 +44,8 @@ The project is built as a **Hybrid Full-Stack Application**:
 ```text
 examcraft-pro/
 ├── app/
-│   ├── Models/                              → 11 Eloquent models (User, Role, ExamPaper, Page, …)
-│   │   ├── User.php                         → HasOne(Role) relationship
+│   ├── Models/                              → 12 Eloquent models (User, Role, ExamPaper, Page, UserPaper, …)
+│   │   ├── User.php                         → HasOne(Role), HasMany(ExamPaper, QuestionBank, UserPaper); isAdmin() helper
 │   │   ├── Role.php                         → Dedicated roles table (admin | user)
 │   │   ├── ExamPaper.php
 │   │   ├── Page.php
@@ -53,8 +53,9 @@ examcraft-pro/
 │   │   ├── McqBlock.php
 │   │   ├── McqOption.php
 │   │   ├── ExamPaperTopic.php
-│   │   ├── QuestionBank.php
-│   │   ├── QuestionBankOption.php
+│   │   ├── QuestionBank.php                 → JSON `data` column (stem_text, stem_image, options[], correct_answer)
+│   │   ├── QuestionBankOption.php           → Retained model for historical reference (table dropped by JSON migration)
+│   │   ├── UserPaper.php                    → Server-persisted user paper; `paper_data` JSON cast + question_count accessor
 │   │   └── ProjectSnapshot.php
 │   ├── Http/
 │   │   ├── Controllers/
@@ -80,8 +81,11 @@ examcraft-pro/
 │   │   │   ├── McqBlockController.php          → Full CRUD for MCQ-specific block data
 │   │   │   ├── McqOptionController.php         → Nested CRUD (mcq-blocks.mcq-options)
 │   │   │   ├── ExamPaperTopicController.php    → Nested CRUD (exam-papers.topics)
-│   │   │   ├── QuestionBankController.php      → Full CRUD for question bank + filter() API method (grade+subject query)
-│   │   │   ├── QuestionBankOptionController.php → Nested CRUD (question-bank.options)
+│   │   │   ├── QuestionBankController.php      → Full CRUD for question bank + filter() API method (grade+subject query); stores stem/options/correct-answer in the JSON `data` column
+│   │   │   ├── QuestionBankOptionController.php → Nested CRUD (question-bank.options) — retained but now unused (options live in JSON)
+│   │   │   ├── UserDashboardController.php      → User-scoped dashboard with paper stats (total/auto/manual/published + recent)
+│   │   │   ├── UserPaperController.php          → Blade CRUD for a user's papers (index/show/edit/update/destroy/export) — non-admin only
+│   │   │   ├── UserPaperApiController.php       → JSON API for the SPA (index/store/show/update) under session auth
 │   │   │   └── Controller.php                  → Base controller
 │   │   └── Middleware/
 │   │       └── AdminMiddleware.php           → RBAC check for admin access (via $user->isAdmin())
@@ -90,7 +94,7 @@ examcraft-pro/
 │   └── app.php                               → Middleware & routing registration
 ├── config/                                   → Laravel system configuration
 ├── database/
-│   └── migrations/                           → 15 migrations defining the examcraft schema
+│   └── migrations/                           → 20 migrations defining the examcraft schema (incl. user_papers + question-bank JSON conversion)
 ├── public/
 │   ├── adminlte/                             → Centralized AdminLTE v3.2.0 assets (dist, plugins)
 │   ├── css/
@@ -107,16 +111,20 @@ examcraft-pro/
 │   │   │   ├── uiStore.js                     → Zoom, panel widths, active tab, theme, toasts, currentView (SPA view routing)
 │   │   │   ├── typoStore.js                   → Typography settings + 6 Cambridge presets
 │   │   │   ├── projectStore.js                → IndexedDB CRUD, import/export
-│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, grade, subject, selectedMcqs, totalMarks)
+│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logo, selectedMcqs, totalMarks)
 │   │   ├── composables/                      → Reusable logic (useZoom, useTypography, etc.)
 │   │   ├── components/                       → UI components (Canvas, Panels, Blocks)
 │   │   └── views/                            → SPA top-level views (HomeScreen, AutoPaperGenerator, AutoPaperPreview)
 │   └── views/
 │       ├── admin/                            → Blade templates for Admin Dashboard
 │       │   ├── users/                        → User management views (index, create, edit, show)
-│       │   ├── questions/                    → Question bank views (index, create, show, edit)
+│       │   ├── questions/                    → Question bank views (index, create, show, edit) — now read/write the JSON `data` column
 │       │   ├── papers/                      → Exam papers views (index, create, show, edit)
 │       │   └── dashboard.blade.php           → Dashboard landing page
+│       ├── user/                             → Blade templates for the User Dashboard (AdminLTE)
+│       │   ├── dashboard.blade.php           → Stats cards + quick actions + recent papers
+│       │   ├── layouts/app.blade.php         → Shared AdminLTE layout (sidebar, navbar, toastr)
+│       │   └── papers/                       → My Papers views (index, show, edit)
 │       ├── auth/                             → Blade templates for Login/Register (Breeze v2.4.2)
 │       │   ├── combined.blade.php              → Flip-card Login/Register (standalone full-page; the active view)
 │       │   ├── login.blade.php                → Login form (legacy — kept as backup)
@@ -129,8 +137,8 @@ examcraft-pro/
 │       ├── app.blade.php                     → SPA Shell (injects window.authUser with nullsafe role)
 │       └── landing.blade.php                 → Marketing landing page (guests only)
 ├── routes/
-│   ├── web.php                               → Guest routes (login, register, landing), root GET / (guest→landing, auth→SPA), Admin (prefixed + bare / redirect), SPA catch-all
-│   ├── api.php                               → API routes for SPA (auto paper generator filter, etc.) — registered in bootstrap/app.php
+│   ├── web.php                               → Role-aware root GET / (guest→landing, admin→admin.dashboard, user→user.dashboard), SPA launchers (/user/manual, /user/auto), profile routes, Admin panel (auth+admin), /api/question-bank/filter, /api/user/* paper APIs, User dashboard + papers CRUD, SPA catch-all
+│   ├── api.php                               → Registered in bootstrap/app.php (api: routing); intentionally empty — the SPA "API" endpoints live in web.php for session/CSRF auth
 │   ├── auth.php                              → Breeze v2.4.2 authentication routes (login, register, password reset, email verification, confirm-password, logout)
 │   └── console.php                           → Artisan console commands routing
 ├── storage/app/public/
@@ -158,37 +166,49 @@ The SPA uses a modular "Block" system where each part of an exam paper is a dist
 6.  **Divider**: Horizontal separators with customizable styles (solid/dashed/dotted).
 
 ---
-## 4a. Auto Paper Generator (New — August 11, 2026)
+## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16, 2026)
 
-A wizard-based paper generation flow that sources MCQs from the server-side question bank.
+A wizard-based paper generation flow that sources MCQs from the server-side question bank and produces a Cambridge-styled MCQ paper.
 
 ### View Flow
 ```
-Login → HomeScreen → ┬→ "Create Manual Paper" → existing canvas editor
-                     └→ "Auto Paper Generator" → AutoPaperGenerator
-                         → AutoPaperPreview → Print
+Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
+                       └→ "Auto Paper" (SPA launcher) → AutoPaperGenerator
+                            → AutoPaperPreview → Save / Print
 ```
 
 ### Backend
-- **`routes/api.php`**: Created (did not exist before). Registered in `bootstrap/app.php` via `api:` routing.
-- **`GET /api/question-bank/filter?grade=X&subject=Y`**: Returns questions matching grade+subject with options reshaped from the wide-row `question_bank_options` table format into a structured array (`[{label: 'A', option_text: '...'}, ...]`).
+- **`routes/api.php`**: Created (did not exist before). Registered in `bootstrap/app.php` via `api:` routing. Intentionally **empty** — the SPA "API" endpoints are defined in `routes/web.php` (not `api.php`) because they use Laravel's session cookie + CSRF auth rather than token auth.
+- **`GET /api/question-bank/filter?grade=X&subject=Y`**: Returns questions matching grade+subject, reading the stem/options/correct-answer from the JSON `data` column and mapping option images through `Storage::url()`.
 - **Migration `2026_08_11_000001_add_grade_to_question_bank_table.php`**: Added `grade` column (nullable string) after `subject` on `question_bank` table.
 - **`QuestionBank.php` model**: `'grade'` added to `$fillable`.
 
 ### Frontend Stores
 - **`uiStore.js`** — `currentView: 'home'` state + `setView(view)` action (drives all view switching in App.vue).
-- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `selectedMcqs`. Getter: `totalMarks`. Actions: `setPaperMeta()`, `setSelectedMcqs()`, `reset()`.
+- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoFile`, `logoDataUrl`, `selectedMcqs`. Getter: `totalMarks` (question count). Actions: `setPaperMeta()`, `setLogo()`, `setSelectedMcqs()`, `reset()`. Ships `DEFAULT_INSTRUCTIONS` and `DEFAULT_ADDITIONAL_MATERIALS` constants for the Cambridge answer-sheet boilerplate.
 
 ### View Components (`resources/js/views/`)
 | Component | View ID | Purpose |
 |-----------|---------|---------|
-| `HomeScreen.vue` | `home` | Two Bootstrap cards: "Create Manual Paper" (→ `manual`) and "Auto Paper Generator" (→ `auto`). Uses CSS custom properties for theming + inline SVG icons. |
-| `AutoPaperGenerator.vue` | `auto` | Paper settings form (title, school, date, grade, subject). Grade→subject cascading dropdowns from hardcoded mapping. "Load MCQs" fetches via `window.axios.get('/api/question-bank/filter')`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores selection in autoPaperStore and navigates to `auto-preview`. |
-| `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm, white with shadow) showing school name, exam header, Section A questions with A/B/C/D options. Action bar: "Edit Selection" (→ `auto`), "Print Paper" (`window.print()`), "Home" (resets store → `home`). Print CSS hides action bar. |
+| `HomeScreen.vue` | `home` | Two cards: "Create Manual Paper" (→ `manual`) and "Auto Paper Generator" (→ `auto`). Non-admin users also see a "Back to My Dashboard" link. |
+| `AutoPaperGenerator.vue` | `auto` | Full paper settings form — identity (title, paper code, session, duration), institution (school, date), setup (grade → subject cascading dropdowns from a hardcoded mapping), additional materials, editable instructions, and an optional logo upload. "Load MCQs" fetches `/api/question-bank/filter`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores the selection and navigates to `auto-preview`. Also supports **editing** an existing paper via `?paper_id=N` (see below). |
+| `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm) rendering the Cambridge header (logo + school, subject/code/session/duration, additional materials, bolded-keyword instructions, footer note) and Section A questions with A/B/C/D options and images. Action bar: "Edit Selection" (→ `auto`), **"Save to My Papers"** (POST/PUT `/api/user/papers`), "Print Paper" (`window.print()`), "Home". Print CSS hides the action bar. |
+
+### Auto-paper Persistence (server-side "My Papers")
+- Both the **manual** editor (TopBar "Save to My Papers" cloud button) and the **auto** preview ("Save to My Papers") persist the paper to the server via `POST /api/user/papers` (create) or `PUT /api/user/papers/{id}` (update) using `window.axios`.
+- The manual paper payload bundles the full designer state (`pages`, `paperMeta`, `typoState`, `styleState`, `globalOpts`, `coverFooter`, `pageFooter`) into the `paper_data` JSON. The auto paper payload stores its wizard state (`paperTitle`, `schoolName`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoDataUrl`, `selectedMcqs`).
+- After the first save, the returned paper `id` is retained (in `manualPaperId` / `savedPaperId`) so subsequent saves **update** rather than duplicate.
+- **Editing a saved paper**: the `/user/papers/{id}/edit` route renders `AutoPaperGenerator.vue` with `?paper_id=N`; `loadPaperForEdit()` fetches `/api/user/papers/{id}`, mirrors the `paper_data` into the store + local form refs, re-selects grade/subject, and re-loads the matching MCQs with prior selections restored. Manual papers instead reopen the SPA in `manual` mode via `UserPaperController::export()`.
+
+### SPA Launchers & Role-Aware Entry
+- The root `/` route is now **role-aware**: guests → `landing`, admins → `admin.dashboard`, regular users → `user.dashboard`.
+- Two clean launcher URLs drive the SPA without query strings: `GET /user/manual` and `GET /user/auto`, both `auth`-protected and passing `initialMode` into `app.blade.php`.
+- `app.blade.php` injects `window.initialMode` and `window.initialPaperId`, consumed by `App.vue`'s `initFromLauncher()`. For manual papers it restores pages/typography/global opts; for auto papers it hydrates the store and shows `auto-preview`.
+- `bootstrap/app.php` now uses a closure for `redirectUsersTo()` returning `/admin/dashboard` or `/user/dashboard` based on `isAdmin()`, and `bootstrap.js` injects the CSRF token into `window.axios` default headers for same-origin POST/PUT/DELETE.
 
 ### UI Updates
-- **`TopBar.vue`**: Added "Back to Home" button (left-arrow icon, first item in topbar) that calls `uiStore.setView('home')`.
-- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`. Three new views added via `v-else-if` chain. New view components imported: `HomeScreen`, `AutoPaperGenerator`, `AutoPaperPreview`.
+- **`TopBar.vue`**: Added "Back to Home" button (left-arrow, first item) — `goHome()` navigates admins to the SPA `home` view and non-admins to `/user/dashboard`. Added the "Save to My Papers" cloud-upload button wired to the `/api/user/papers` endpoint.
+- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperGenerator`, `AutoPaperPreview`.
 
 ---
 
@@ -213,6 +233,8 @@ To achieve pixel-perfect "Cambridge-style" formatting, the app uses a dynamic CS
 
 ### **Server Persistence (MySQL)**
 - Used for user accounts, global question banks, and server-side exam paper management.
+- **User Papers (`user_papers` table)** — the "My Papers" feature persists a user's finished papers server-side. Schema: `user_id` (FK cascade), `title`, `type` (enum `manual`|`auto`), `grade`, `subject`, `school_name`, `exam_date`, `paper_data` (longText JSON), `status` (enum `draft`|`published`). The `UserPaper` model casts `paper_data` to an array and exposes a `question_count` accessor (auto = count of `selectedMcqs`, manual = count of MCQ blocks).
+- **Question Bank (`question_bank` table)** — after the JSON conversion (see §7a), each question stores its stem and options inside a single JSON `data` column rather than a separate options table.
 
 ---
 
@@ -226,17 +248,74 @@ A secondary interface built with **AdminLTE v3.2.0** (Bootstrap 4) for high-leve
     *   **CRUD Operations**: Admin-only ability to add new users, edit profiles, and delete accounts (excluding self).
     *   **Role Assignment**: Toggle between `admin` and `user` roles via the `roles` relationship.
 3.  **Question Bank**:
-    *   **Index (DataTables List)**: Searchable, paginated table showing all questions with columns for question text, subject, topic, marks, and type. Export buttons (Copy, CSV, Excel, PDF, Print) with SweetAlert2 delete confirmations (`resources/views/admin/questions/index.blade.php`).
-    *   **Create (2-step form)**: Step 1 captures question text (with live character counter) and optional image upload with preview. Step 2 captures answer options A–D (mandatory, text and/or image each, with iCheck "Mark as Correct" radio), plus dynamic E–F (added/removed via JavaScript). A step indicator pill shows progress. All data posts to `admin.questions.store` in one request — the controller validates and saves the question with its options together (`resources/views/admin/questions/create.blade.php`).
-    *   **Show (detail view)**: Displays question text, image, all options in a table with correct-answer highlighting, and metadata (subject, topic, marks) (`resources/views/admin/questions/show.blade.php`).
-    *   **Edit**: Form to update question text, metadata fields (subject, topic, marks, difficulty, type, correct answer), and upload a replacement image with live preview. Shows the current image if one exists (`resources/views/admin/questions/edit.blade.php`).
-    *   The legacy standalone **Manage Options** page was removed when options were merged into the create flow: its sidebar nav item, the `admin/options` GET/POST routes, and `resources/views/admin/questions/options.blade.php` are gone. `QuestionBankOptionController` and the nested `question-bank.options` resource routes are retained.
+    *   **Data model**: After the JSON conversion (§7a), each question stores `subject`, `grade`, `marks`, and a JSON `data` column holding `{ stem_text, stem_image, options[{label, text, image}], correct_answer }`. Stem/option images are uploaded to `storage/app/public/questions/` and `storage/app/public/options/`.
+    *   **Index (DataTables List)**: Searchable, paginated table showing all questions with columns for grade, question (stem text from JSON), subject, marks, and type. Export buttons (Copy, CSV, Excel, PDF, Print) with SweetAlert2 delete confirmations (`resources/views/admin/questions/index.blade.php`).
+    *   **Create**: Form capturing grade (cascading subject dropdown), subject, marks, stem text (required unless a stem image is provided), stem image upload, options A–D (each text-required-unless-image, with image upload), and the correct-answer selector. `QuestionBankController@store` validates and builds the `data` JSON, storing the question in one request (`resources/views/admin/questions/create.blade.php`).
+    *   **Show (detail view)**: Displays stem text, stem image, all options in a table with correct-answer highlighting, and metadata (grade, subject, marks, correct answer) (`resources/views/admin/questions/show.blade.php`).
+    *   **Edit**: Form to update the stem, options, metadata, and replace images with live preview — preserving existing images when no new file is uploaded (`resources/views/admin/questions/edit.blade.php`).
+    *   The legacy standalone **Manage Options** page and the separate `question_bank_options` table were removed in the JSON conversion (§7a). `QuestionBankOptionController`, the `QuestionBankOption` model, and the nested `question-bank.options` resource routes are retained for reference but are no longer used by the active flow.
 4.  **Exam Papers**:
     *   **Index (DataTables List)**: Searchable, paginated table of all exam papers with title, subject, exam code, year, and status columns. Export support and SweetAlert2 delete confirmations (`resources/views/admin/papers/index.blade.php`).
     *   **Create**: Form capturing all exam paper metadata — title, subject, exam code, organization, session, year, duration, typography preset, instructions, and materials (`resources/views/admin/papers/create.blade.php`).
     *   **Show (detail view)**: Displays all paper metadata including status badge, pages overview with block counts per page, and related topics/snapshots (`resources/views/admin/papers/show.blade.php`).
     *   **Edit**: Form to update all paper metadata including the status toggle (Draft / Published) (`resources/views/admin/papers/edit.blade.php`).
 5.  **DataTables**: Integrated into `index.blade.php` for questions, papers, and dashboard tables, providing client-side search, sort, and export (CSV/Excel/PDF/Print) via the DataTables Buttons plugin. Powered by AdminLTE's bundled plugins (JSZip, pdfmake).
+
+---
+
+## 7a. Question Bank JSON Conversion (August 16, 2026)
+
+The question bank was restructured from a relational model (a `question_bank` row plus a separate `question_bank_options` table) to a **single JSON column** on `question_bank`.
+
+### Migration `2026_08_17_000001_convert_question_bank_to_json.php`
+Runs `up()` in four steps:
+1. Adds a nullable `data` **JSON column** after `grade` on `question_bank`.
+2. Migrates existing rows: for each question, reads its old `question_text` column and any `question_bank_options` rows, and builds `{ stem_text, stem_image, options[], correct_answer }`.
+3. Drops the `question_bank_options` table.
+4. Drops the now-redundant `question_text` column.
+
+The `buildOptions()` helper handles **both** historical layouts — the row-per-option layout (`label` + `option_text` + `option_image_url`) and the wide-row layout (a single row with `option_a_text` … `option_f_image`), detecting the layout via `hasWideColumns()`.
+
+### Model & Controller Changes
+- **`QuestionBank.php`** — `$fillable` is now `['id', 'user_id', 'subject', 'grade', 'marks', 'data']` with `data` cast to an array. The `topic`/`difficulty`/`option_type`/`stem`/`correct_answer` scalar columns from the original `question_bank` schema are no longer populated.
+- **`QuestionBankController.php`** — `store()`/`update()` validate stem + options A–D + `correct_answer` and build the `data` JSON via `buildData()`/`buildOptions()`, uploading stem/option images to the `public` disk. `filter()` now reads the `data` array and reshapes options for the SPA (including `Storage::url()` for images).
+- The admin `questions/*` Blade views were rewritten to read/write the JSON `data` column instead of the old relational columns.
+
+---
+
+## 7b. User Dashboard & "My Papers" (August 16, 2026)
+
+A second, non-admin **User Dashboard** (AdminLTE) was added so regular users can manage their own saved papers server-side. Admins are redirected away (`UserDashboardController` and `UserPaperController` constructors bounce `isAdmin()` users back to `/`).
+
+### Routes (`routes/web.php`, `user.` name prefix, all `auth`)
+| Method | URI | Controller@method | Name |
+|--------|-----|-------------------|------|
+| GET | `/user/dashboard` | UserDashboardController@index | `user.dashboard` |
+| GET | `/user/papers` | UserPaperController@index | `user.papers.index` |
+| GET | `/user/papers/{id}` | UserPaperController@show | `user.papers.show` |
+| GET | `/user/papers/{id}/edit` | UserPaperController@edit | `user.papers.edit` |
+| PUT | `/user/papers/{id}` | UserPaperController@update | `user.papers.update` |
+| DELETE | `/user/papers/{id}` | UserPaperController@destroy | `user.papers.destroy` |
+| GET | `/user/papers/{id}/export` | UserPaperController@export | `user.papers.export` |
+| GET | `/user/manual` | (closure) → `view('app', ['initialMode' => 'manual'])` | `user.manual` |
+| GET | `/user/auto` | (closure) → `view('app', ['initialMode' => 'auto'])` | `user.auto` |
+
+### SPA JSON API (`routes/web.php`, `api.user.` name prefix, session auth + CSRF)
+| Method | URI | Controller@method |
+|--------|-----|-------------------|
+| GET | `/api/user/papers` | UserPaperApiController@index |
+| POST | `/api/user/papers` | UserPaperApiController@store |
+| GET | `/api/user/papers/{id}` | UserPaperApiController@show |
+| PUT | `/api/user/papers/{id}` | UserPaperApiController@update |
+
+Every `UserPaper` query is scoped to the authenticated user (`forUser(Auth::id())`), so users can only touch their own papers.
+
+### Views (`resources/views/user/`)
+- **`dashboard.blade.php`** — four info-box stats (Total / Auto / Manual / Published) plus "Create Manual Paper" and "Auto Paper Generator" quick-action cards and a "Recent Papers" table.
+- **`papers/index.blade.php`** — DataTables list of the user's papers with type/grade/subject/school/status columns, export buttons, and SweetAlert2 delete confirmation.
+- **`papers/show.blade.php`** — For **auto** papers, renders a full printable A4 sheet from `paper_data` (logo, school, subject/code/session, materials, instructions, Section A questions). For **manual** papers, shows a metadata table with `question_count` and export/edit/delete actions.
+- **`papers/edit.blade.php`** — Edits common metadata (title, status, exam date, subject, grade, school) and, for auto papers, the paper identity fields (paper code, session, duration, materials, instructions) with a read-only question list.
+- **`layouts/app.blade.php`** — shared AdminLTE layout (sidebar with Dashboard / My Papers / Manual Paper / Auto Paper nav, navbar with profile + logout, toastr flash messages).
 
 ---
 
@@ -266,11 +345,11 @@ Breeze replaced `resources/css/app.css` (1,673 lines) with 3 lines of Tailwind d
 
 **Fix**: Restored the full theme CSS into `resources/css/app.css` while keeping the 3 Tailwind directives at the top (these do no harm in the SPA context and preserve the Tailwind setup inherited from Breeze).
 
-#### 8.2 Login Redirect — `/dashboard` vs `/`
-Breeze defaults to redirecting authenticated users to `route('dashboard')` (`/dashboard`). Changed in two places:
+#### 8.2 Login Redirect — `/dashboard` vs role-aware home
+Breeze defaults to redirecting authenticated users to `route('dashboard')` (`/dashboard`). This was replaced with a **role-aware** redirect:
 
-1. **`AuthenticatedSessionController.php`** — `redirect()->intended()` target changed from `route('dashboard', absolute: false)` to `'/'`
-2. **`bootstrap/app.php`** — Added `$middleware->redirectUsersTo('/')` so Breeze's auth middleware redirects authenticated guests to the SPA
+1. **`AuthenticatedSessionController.php`** — `redirect()->intended()` target changed from `route('dashboard', absolute: false)` to a role check: `auth()->user()->isAdmin() ? route('admin.dashboard') : route('user.dashboard')`
+2. **`bootstrap/app.php`** — `$middleware->redirectUsersTo()` is now a closure returning `route('admin.dashboard')` or `route('user.dashboard')` based on `isAdmin()`, so Breeze's auth middleware routes authenticated guests correctly
 3. **`routes/web.php`** — `/dashboard` route changed from showing `view('dashboard')` to a simple `redirect('/')` with `auth` middleware only (removed `verified`)
 
 #### 8.3 `window.authUser` Nullsafe Crash
@@ -361,7 +440,8 @@ Two further fixes shipped alongside the flip-card:
 - **Roles**: `admin` and `user`.
 - **User Model Helper**: `isAdmin()` method checks the related `Role` model for the 'admin' name.
 - **AdminMiddleware**: Protects all `/admin/*` routes.
-- **SPA Protection**: The main ExamCraft SPA (`/`) is served only to authenticated users via `view('app')` in a route closure. Guests visiting `/` are shown the marketing landing page (`landing.blade.php`) instead. After login/register, users are redirected to `/` which now loads the SPA automatically.
+- **Role-Aware Root Route**: `/` now checks auth and role — guests → `landing.blade.php`; admins → `redirect(admin.dashboard)`; regular users → `redirect(user.dashboard)`. The SPA itself is reached through the launcher routes `/user/manual` and `/user/auto` (and the `/app/{any?}` catch-all).
+- **SPA Protection**: The SPA views (`view('app')`) are served only to authenticated users. After login/register, `bootstrap/app.php`'s `redirectUsersTo()` closure sends admins to `admin.dashboard` and everyone else to `user.dashboard`.
 - **Admin `/` Redirect**: A `GET /admin` route was added that redirects to `admin.dashboard` via `route()` helper, since the admin group previously only defined `/admin/dashboard` and bare `/admin` returned 404.
 - **Registration**: Public registration (`/register`) defaults to the `user` role and has no role selection field to maintain security.
 
@@ -434,13 +514,14 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 ## 11. Deployment & Setup Details
 1.  **Dependencies**: `composer install` && `npm install`.
 2.  **Environment**: Configure `.env` with MySQL credentials and `APP_URL`.
-3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin — user `admin@examcraft.com` with role `admin`). This also runs the `add_grade_to_question_bank_table` migration for the auto paper generator.
+3.  **Database**: `php artisan migrate --seed` (Initializes roles and default admin — user `admin@examcraft.com` with role `admin`). This also runs the `add_grade_to_question_bank_table` migration (auto paper generator), the `create_user_papers_table` migration (My Papers), and the `convert_question_bank_to_json` migration (question bank JSON schema).
 4.  **Breeze Install**: Already installed. `composer require laravel/breeze --dev` → `php artisan breeze:install blade` (adds auth controllers, views, routes, and ProfileController). If re-installing, Breeze must NOT be allowed to overwrite `routes/web.php` or `resources/css/app.css` — both have been customized post-install.
-5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects to `'/'` not `route('dashboard')`, (c) `bootstrap/app.php` has `$middleware->redirectUsersTo('/')` AND registers `api:` routing, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
+5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects via the `isAdmin()` role check (not `route('dashboard')`), (c) `bootstrap/app.php` has `$middleware->redirectUsersTo()` as a role-aware closure AND registers `api:` routing, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
 6.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
 7.  **Storage**: `php artisan storage:link` (Critical for image visibility).
 8.  **Build**: `npm run dev` (Development with HMR on `http://127.0.0.1:5173`) or `npm run build` (Production Vite bundle). Vite dev server is configured with `host: '127.0.0.1'` and `cors: true` in `vite.config.js`. Stale `public/hot` files are auto-removed on boot by `AppServiceProvider` when the dev server is no longer listening (§8.6), so a dead hot file won't blank the app.
-9.  **Auto Paper Generator — Seeding Test Data**: The generator pulls from the `question_bank` table. Seed questions via the Admin Dashboard (`/admin/dashboard` → Question Bank → Add Question) with grade and subject set. The API endpoint (`/api/question-bank/filter?grade=X&subject=Y`) returns questions with options reshaped from the wide-row format.
+9.  **Auto Paper Generator — Seeding Test Data**: The generator pulls from the `question_bank` table. Seed questions via the Admin Dashboard (`/admin/dashboard` → Question Bank → Add Question) with grade and subject set. The API endpoint (`/api/question-bank/filter?grade=X&subject=Y`) returns questions read from the JSON `data` column.
+10.  **User Papers (My Papers)**: Non-admin users manage their saved papers at `/user/dashboard` → "My Papers". The SPA persists papers via `/api/user/papers` (session auth + CSRF from `bootstrap.js`); the Blade dashboard reads/writes them via the `user.papers.*` routes.
 
 ---
-*Last Updated: August 13, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 16, 2026 by ExamCraft AI Assistant*
