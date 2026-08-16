@@ -2,7 +2,7 @@
   <div id="topbar">
     <div class="topbar-scroll">
     <!-- Back to Home -->
-    <button class="tb-icon home-btn" data-tip="Back to Home" @click="uiStore.setView('home')">
+    <button class="tb-icon home-btn" data-tip="Back to Home" @click="goHome">
       <i class="fa fa-arrow-left"></i>
     </button>
 
@@ -91,6 +91,11 @@
       <i class="fa fa-print"></i> <span style="font-size:11px;">Print</span>
     </button>
 
+    <!-- Save to My Papers (server) -->
+    <button class="tb-icon green" data-tip="Save to My Papers (server)" @click="saveManualPaper" :disabled="isSavingManual">
+      <i class="fa" :class="isSavingManual ? 'fa-spinner fa-spin' : (manualPaperId ? 'fa-cloud-check' : 'fa-cloud-upload-alt')"></i>
+    </button>
+
     <div class="topbar-sep"></div>
     </div><!-- end topbar-scroll -->
 
@@ -120,22 +125,28 @@
 import { computed, ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import { useExamStore } from '../stores/examStore';
 import { useUiStore } from '../stores/uiStore';
+import { useTypoStore } from '../stores/typoStore';
 import { useBlockOperations } from '../composables/useBlockOperations';
 import { useProjectManager } from '../composables/useProjectManager';
 import { usePrint } from '../composables/usePrint';
 import { useTheme } from '../composables/useTheme';
+import { useToast } from '../composables/useToast';
 import ThemeDropdown from './ui/ThemeDropdown.vue';
 
 const examStore = useExamStore();
 const uiStore = useUiStore();
+const typoStore = useTypoStore();
 const { addBlock, addPage, clearAllBlocks: clearPaper } = useBlockOperations();
 const { saveProject: saveCurrentProject, exportJSON: exportProjectJSON, importJSON } = useProjectManager();
 const { showPreview, printPaper } = usePrint();
 const { THEMES } = useTheme();
+const { showToast } = useToast();
 
 const importInput = ref(null);
 const userDropdownRef = ref(null);
 const showUserDropdown = ref(false);
+const isSavingManual = ref(false);
+const manualPaperId = ref(window.initialPaperId || null);
 
 const userName = window.authUser?.name || 'User';
 const userEmail = window.authUser?.email || '';
@@ -170,6 +181,14 @@ function toggleThemeDropdown(event) {
     uiStore.showThemeDropdown = !uiStore.showThemeDropdown;
 }
 
+function goHome() {
+    if (window.authUser?.role === 'admin') {
+        uiStore.setView('home');
+    } else {
+        window.location.href = '/user/dashboard';
+    }
+}
+
 function toggleUserDropdown() {
     showUserDropdown.value = !showUserDropdown.value;
     if (showUserDropdown.value) {
@@ -191,6 +210,52 @@ async function importProjectJSON(event) {
         await importJSON(file);
     }
     event.target.value = '';
+}
+
+async function saveManualPaper() {
+    isSavingManual.value = true;
+    try {
+        const paperMeta = examStore.paperMeta || {};
+        const paperData = {
+            pages: JSON.parse(JSON.stringify(examStore.pages)),
+            paperMeta: { ...paperMeta },
+            typoState: { ...(typoStore.typoState || {}) },
+            styleState: { ...(examStore.styleState || {}) },
+            globalOpts: {
+                qNumberStart: examStore.qNumberStart,
+                globalOptsLayout: examStore.globalOptsLayout,
+                showAnswerBoxes: examStore.showAnswerBoxes,
+                showMarks: examStore.showMarks,
+                twoColumn: examStore.twoColumn,
+            },
+            coverFooter: { ...(examStore.coverFooter || {}) },
+            pageFooter: { ...(examStore.pageFooter || {}) },
+        };
+
+        const payload = {
+            title: paperMeta.title || 'Untitled Paper',
+            type: 'manual',
+            grade: paperMeta.subject || null,
+            subject: paperMeta.subject || null,
+            school_name: paperMeta.organization || null,
+            status: 'draft',
+            paper_data: paperData,
+        };
+
+        if (manualPaperId.value) {
+            await window.axios.put(`/api/user/papers/${manualPaperId.value}`, payload);
+        } else {
+            const { data } = await window.axios.post('/api/user/papers', payload);
+            manualPaperId.value = data.paper.id;
+        }
+
+        showToast('Paper saved to your account!', 'success');
+    } catch (err) {
+        console.error('Save manual paper failed:', err);
+        showToast('Failed to save paper. Please try again.', 'error');
+    } finally {
+        isSavingManual.value = false;
+    }
 }
 
 const handleOutsideClick = (event) => {

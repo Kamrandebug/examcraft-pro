@@ -8,7 +8,27 @@
     <li class="breadcrumb-item active">Edit</li>
 @endsection
 
+@section('styles')
+    <!-- icheck-bootstrap -->
+    <link rel="stylesheet" href="{{ asset('adminlte/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
+    <style>
+        .option-preview-img {
+            max-height: 60px;
+            margin-top: 5px;
+        }
+    </style>
+@endsection
+
 @section('content')
+@php
+    $data = $question->data ?? [];
+    $options = $data['options'] ?? [];
+    $optionsByLabel = [];
+    foreach ($options as $opt) {
+        $optionsByLabel[$opt['label'] ?? ''] = $opt;
+    }
+@endphp
+
 <div class="row">
     <div class="col-md-8 offset-md-2">
         <form action="{{ route('admin.questions.update', $question->id) }}" method="POST" enctype="multipart/form-data">
@@ -20,9 +40,10 @@
                     <h3 class="card-title">Edit Question</h3>
                 </div>
                 <div class="card-body">
+                    {{-- Grade + Subject + Marks --}}
                     <div class="form-group row">
                         <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
-                        <div class="col-sm-4">
+                        <div class="col-sm-3">
                             <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
                                 <option value="">— Select Grade —</option>
                                 @foreach(['O Level','A Level','8th Grade','9th Grade','10th Grade'] as $g)
@@ -35,7 +56,7 @@
                         </div>
 
                         <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
-                        <div class="col-sm-4">
+                        <div class="col-sm-3">
                             <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required>
                                 <option value="">— Select Subject —</option>
                             </select>
@@ -43,86 +64,97 @@
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <label for="marks" class="col-sm-1 col-form-label">Marks</label>
+                        <div class="col-sm-1">
+                            <input type="number" name="marks" id="marks" class="form-control" min="0" value="{{ old('marks', $question->marks) }}">
+                        </div>
                     </div>
 
+                    {{-- Stem text + image --}}
                     <div class="form-group">
-                        <label for="question_text">Question Text <span class="text-danger">*</span></label>
-                        <textarea name="question_text" id="question_text" class="form-control @error('question_text') is-invalid @enderror" rows="4" required>{{ old('question_text', $question->question_text) }}</textarea>
-                        @error('question_text')
+                        <label for="stem_text">Question Text <span class="text-danger">*</span></label>
+                        <textarea name="stem_text" id="stem_text" class="form-control @error('stem_text') is-invalid @enderror" rows="4">{{ old('stem_text', $data['stem_text'] ?? '') }}</textarea>
+                        @error('stem_text')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="topic">Topic</label>
-                                <input type="text" name="topic" id="topic" class="form-control" value="{{ old('topic', $question->topic) }}">
+                    <div class="form-group">
+                        <label for="stem_image">Question Image (optional)</label>
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input type="file" name="stem_image" class="custom-file-input @error('stem_image') is-invalid @enderror" id="stem_image" onchange="previewStemImage(this)">
+                                <label class="custom-file-label" for="stem_image">Choose image</label>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="difficulty">Difficulty</label>
-                                <select name="difficulty" id="difficulty" class="form-control">
-                                    <option value="">— Select —</option>
-                                    <option value="easy" {{ old('difficulty', $question->difficulty) == 'easy' ? 'selected' : '' }}>Easy</option>
-                                    <option value="medium" {{ old('difficulty', $question->difficulty) == 'medium' ? 'selected' : '' }}>Medium</option>
-                                    <option value="hard" {{ old('difficulty', $question->difficulty) == 'hard' ? 'selected' : '' }}>Hard</option>
-                                </select>
+                        @error('stem_image')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        @if(!empty($data['stem_image']))
+                            <div id="current-stem-image" class="mt-2">
+                                <p class="text-muted small mb-1">Current image:</p>
+                                <img src="{{ Storage::url($data['stem_image']) }}" class="img-fluid rounded border" style="max-height: 200px;">
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="marks">Marks</label>
-                                <input type="number" name="marks" id="marks" class="form-control" min="1" value="{{ old('marks', $question->marks) }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="option_type">Type</label>
-                                <select name="option_type" id="option_type" class="form-control">
-                                    <option value="">— Select —</option>
-                                    <option value="MCQ" {{ old('option_type', $question->option_type) == 'MCQ' ? 'selected' : '' }}>MCQ</option>
-                                    <option value="Text" {{ old('option_type', $question->option_type) == 'Text' ? 'selected' : '' }}>Text</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="correct_answer">Correct Answer</label>
-                                <input type="text" name="correct_answer" id="correct_answer" class="form-control" maxlength="10" value="{{ old('correct_answer', $question->correct_answer) }}">
-                            </div>
+                        @endif
+                        <div id="stem-preview-container" class="mt-2" style="display: none;">
+                            <p class="text-muted small mb-1">New image preview:</p>
+                            <img id="stem-image-preview" src="#" class="img-fluid rounded border" style="max-height: 200px;">
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="question_image">Question Image</label>
-                                <div class="input-group">
-                                    <div class="custom-file">
-                                        <input type="file" name="question_image" class="custom-file-input @error('question_image') is-invalid @enderror" id="question_image" onchange="previewEditImage(this)">
-                                        <label class="custom-file-label" for="question_image">Choose image</label>
+                    <hr>
+
+                    {{-- Options A-D + correct answer --}}
+                    <h5>Answer Options</h5>
+                    @foreach(['A', 'B', 'C', 'D'] as $opt)
+                        @php
+                            $lower = strtolower($opt);
+                            $current = $optionsByLabel[$opt] ?? [];
+                        @endphp
+                        <div class="card card-light border mb-3">
+                            <div class="card-body py-2">
+                                <div class="row align-items-end">
+                                    <div class="col-sm-2">
+                                        <span class="badge badge-primary">Option {{ $opt }}</span>
                                     </div>
-                                </div>
-                                @error('question_image')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                                @if($question->question_image)
-                                    <div id="current-image" class="mt-2">
-                                        <p class="text-muted small mb-1">Current image:</p>
-                                        <img src="{{ asset('storage/' . $question->question_image) }}" class="img-fluid rounded border" style="max-height: 200px;">
+                                    <div class="col-sm-6">
+                                        <label for="option_{{ $lower }}_text" class="mb-0">Text</label>
+                                        <input type="text" name="option_{{ $lower }}_text" id="option_{{ $lower }}_text" class="form-control" placeholder="Enter option {{ $opt }} text" value="{{ old('option_'.$lower.'_text', $current['text'] ?? '') }}">
                                     </div>
-                                @endif
-                                <div id="edit-preview-container" class="mt-2" style="display: none;">
-                                    <p class="text-muted small mb-1">New image preview:</p>
-                                    <img id="edit-image-preview" src="#" class="img-fluid rounded border" style="max-height: 200px;">
+                                    <div class="col-sm-4">
+                                        <label for="option_{{ $lower }}_image" class="mb-0">Image (optional)</label>
+                                        <div class="custom-file">
+                                            <input type="file" name="option_{{ $lower }}_image" class="custom-file-input" id="option_{{ $lower }}_image" onchange="previewOptionImage(this, 'option-preview-{{ $opt }}')">
+                                            <label class="custom-file-label" for="option_{{ $lower }}_image">Choose image</label>
+                                        </div>
+                                        @if(!empty($current['image']))
+                                            <div class="mt-2">
+                                                <img src="{{ Storage::url($current['image']) }}" class="img-thumbnail" style="max-height: 60px;">
+                                            </div>
+                                        @endif
+                                        <div id="option-preview-{{ $opt }}" class="mt-2">
+                                            <img src="#" class="option-preview-img img-thumbnail" alt="Option {{ $opt }} Preview" style="display: none;">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    @endforeach
+
+                    <div class="form-group">
+                        <label>Correct Answer <span class="text-danger">*</span></label>
+                        <div class="d-flex">
+                            @foreach(['A', 'B', 'C', 'D'] as $opt)
+                                <div class="icheck-success d-inline mr-4">
+                                    <input type="radio" name="correct_answer" value="{{ $opt }}" id="correct_{{ $opt }}" {{ (old('correct_answer', $data['correct_answer'] ?? '') == $opt) ? 'checked' : '' }}>
+                                    <label for="correct_{{ $opt }}">{{ $opt }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        @error('correct_answer')
+                            <div class="text-danger small">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
                 <div class="card-footer">
@@ -176,13 +208,25 @@
         });
     });
 
-    function previewEditImage(input) {
+    function previewStemImage(input) {
         if (input.files && input.files[0]) {
             var reader = new FileReader();
             reader.onload = function (e) {
-                $('#edit-image-preview').attr('src', e.target.result);
-                $('#edit-preview-container').show();
-                $('#current-image').hide();
+                $('#stem-image-preview').attr('src', e.target.result);
+                $('#stem-preview-container').show();
+                $('#current-stem-image').hide();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function previewOptionImage(input, previewId) {
+        const preview = document.getElementById(previewId).querySelector('img');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
             };
             reader.readAsDataURL(input.files[0]);
         }

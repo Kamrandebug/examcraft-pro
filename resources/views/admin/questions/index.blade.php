@@ -48,7 +48,7 @@
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
                                 <td>{{ $question->grade ?? '—' }}</td>
-                                <td>{{ Str::limit(strip_tags($question->question_text), 100) }}</td>
+                                <td>{{ Str::limit(strip_tags($question->data['stem_text'] ?? '—'), 100) }}</td>
                                 <td>{{ $question->subject }}</td>
                                 <td>{{ $question->topic }}</td>
                                 <td>{{ $question->marks }}</td>

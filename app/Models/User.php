@@ -50,4 +50,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(QuestionBank::class);
     }
+
+    public function userPapers()
+    {
+        return $this->hasMany(UserPaper::class);
+    }
 }

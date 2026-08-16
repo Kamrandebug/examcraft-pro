@@ -4,6 +4,9 @@
       <div class="home-header">
         <h2 class="home-title">ExamCraft Pro</h2>
         <p class="home-subtitle">Professional Exam Authoring</p>
+        <a v-if="window.authUser?.role !== 'admin'" href="/user/dashboard" class="home-dashboard-link">
+          <i class="fa fa-th-large"></i> Back to My Dashboard
+        </a>
       </div>
 
       <div class="row g-4 home-cards-row">
@@ -91,6 +94,25 @@ const uiStore = useUiStore();
   color: var(--text-muted);
   letter-spacing: 0.04em;
   margin: 0;
+}
+
+.home-dashboard-link {
+  display: inline-block;
+  margin-top: 14px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.home-dashboard-link:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
 }
 
 .home-cards-row {

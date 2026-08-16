@@ -12,26 +12,18 @@ class QuestionBank extends Model
     protected $table = 'question_bank';
 
     protected $fillable = [
+        'id',
         'user_id',
-        'source_paper_code',
-        'session',
-        'year',
         'subject',
         'grade',
-        'topic',
-        'difficulty',
-        'question_text',
-        'question_image',
-        'option_type',
-        'correct_answer',
         'marks',
-        'metadata',
+        'data',
     ];
 
     protected function casts(): array
     {
         return [
-            'metadata' => 'array',
+            'data' => 'array',
         ];
     }
 
@@ -40,10 +32,5 @@ class QuestionBank extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function options()
-    {
-        return $this->hasMany(QuestionBankOption::class, 'question_id')->orderBy('sort_order');
     }
 }

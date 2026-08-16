@@ -10,8 +10,10 @@ use App\Http\Controllers\McqOptionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuestionBankController;
-use App\Http\Controllers\QuestionBankOptionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\UserPaperController;
+use App\Http\Controllers\UserPaperApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,16 +23,27 @@ use Illuminate\Support\Facades\Route;
 | Breeze auth routes are in routes/auth.php — DO NOT edit that file.
 |*/
 
-// ── Root Route: landing page for guests, SPA for authenticated users ──────
+// ── Root Route: landing for guests, role-aware dashboard for authenticated ──
 Route::get('/', function () {
-    if (auth()->check()) {
-        return view('app');
+    if (! auth()->check()) {
+        return view('landing');
     }
-    return view('landing');
+
+    if (auth()->user()->isAdmin()) {
+        return redirect()->route('admin.dashboard');
+    }
+
+    return redirect()->route('user.dashboard');
 })->name('home');
 
 // ── Breeze Dashboard → redirect to SPA ────────────────────────────────────
 Route::get('/dashboard', fn () => redirect('/'))->middleware('auth')->name('dashboard');
+
+// ── SPA launchers (clean URLs — the route name carries the initial view) ──
+Route::middleware('auth')->group(function () {
+    Route::get('/user/manual', fn () => view('app', ['initialMode' => 'manual']))->name('user.manual');
+    Route::get('/user/auto', fn () => view('app', ['initialMode' => 'auto']))->name('user.auto');
+});
 
 // ── Breeze Profile Routes ─────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
@@ -46,7 +59,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     Route::resource('users', UserController::class);
     Route::resource('questions', QuestionBankController::class);
-    Route::resource('questions.options', QuestionBankOptionController::class);
     Route::resource('papers', ExamPaperController::class);
     Route::resource('papers.pages', PageController::class);
     Route::resource('papers.pages.blocks', BlockController::class);
@@ -58,11 +70,31 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 // ── SPA API Routes (Auth protected, session cookie) ───────────────────────
 Route::get('/api/question-bank/filter', [QuestionBankController::class, 'filter'])->middleware('auth');
 
+// User Paper API (called from Vue SPA — session auth + CSRF)
+Route::middleware('auth')->prefix('api/user')->name('api.user.')->group(function () {
+    Route::get('papers', [UserPaperApiController::class, 'index'])->name('papers.index');
+    Route::post('papers', [UserPaperApiController::class, 'store'])->name('papers.store');
+    Route::get('papers/{id}', [UserPaperApiController::class, 'show'])->name('papers.show');
+    Route::put('papers/{id}', [UserPaperApiController::class, 'update'])->name('papers.update');
+});
+
 // ── SPA Catch-All Route (Auth protected) ──────────────────────────────────
 Route::middleware(['auth'])->group(function () {
     Route::get('/app/{any?}', [ExamCraftController::class, 'index'])
         ->where('any', '.*')
         ->name('examcraft');
+});
+
+// ── User Dashboard (non-admin users only) ─────────────────────────────────
+Route::prefix('user')->middleware(['auth'])->name('user.')->group(function () {
+    Route::get('dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('papers', [UserPaperController::class, 'index'])->name('papers.index');
+    Route::get('papers/{id}', [UserPaperController::class, 'show'])->name('papers.show');
+    Route::get('papers/{id}/edit', [UserPaperController::class, 'edit'])->name('papers.edit');
+    Route::put('papers/{id}', [UserPaperController::class, 'update'])->name('papers.update');
+    Route::delete('papers/{id}', [UserPaperController::class, 'destroy'])->name('papers.destroy');
+    Route::get('papers/{id}/export', [UserPaperController::class, 'export'])->name('papers.export');
 });
 
 // ── Breeze Auth Routes (routes/auth.php) ──────────────────────────────────

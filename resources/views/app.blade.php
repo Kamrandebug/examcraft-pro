@@ -36,6 +36,10 @@
             'email' => auth()->user()->email ?? '',
             'role' => auth()->user()->role?->name ?? 'user'
         ]);
+
+        // Initial SPA view + paper (injected by the launching route)
+        window.initialMode = @json($initialMode ?? '');
+        window.initialPaperId = @json($initialPaperId ?? '');
     </script>
 </head>
 <body>

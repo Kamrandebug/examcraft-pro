@@ -9,6 +9,9 @@
 @endsection
 
 @section('content')
+@php
+    $data = $question->data ?? [];
+@endphp
 <div class="row">
     <div class="col-md-8 offset-md-2">
         <div class="card">
@@ -26,14 +29,14 @@
             <div class="card-body">
                 <div class="form-group">
                     <label><strong>Question Text</strong></label>
-                    <p>{{ $question->question_text }}</p>
+                    <p>{{ $data['stem_text'] ?? '—' }}</p>
                 </div>
 
-                @if($question->question_image)
+                @if(!empty($data['stem_image']))
                 <div class="form-group">
                     <label><strong>Question Image</strong></label>
                     <div>
-                        <img src="{{ asset('storage/' . $question->question_image) }}" class="img-fluid rounded border" style="max-height: 300px;">
+                        <img src="{{ Storage::url($data['stem_image']) }}" class="img-fluid rounded border" style="max-height: 300px;">
                     </div>
                 </div>
                 @endif
@@ -41,7 +44,7 @@
                 <hr>
 
                 <h5>Options</h5>
-                @if($question->options && $question->options->count() > 0)
+                @if(!empty($data['options']))
                     <table class="table table-bordered">
                         <thead>
                             <tr>
@@ -52,19 +55,19 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($question->options as $option)
-                            <tr class="{{ $option->label == $option->correct_option ? 'table-success' : '' }}">
-                                <td><strong>{{ $option->label }}</strong></td>
-                                <td>{{ $option->option_text }}</td>
+                            @foreach($data['options'] as $option)
+                            <tr class="{{ ($option['label'] ?? '') == ($data['correct_answer'] ?? '') ? 'table-success' : '' }}">
+                                <td><strong>{{ $option['label'] ?? '—' }}</strong></td>
+                                <td>{{ $option['text'] ?? '—' }}</td>
                                 <td>
-                                    @if($option->option_image_url)
-                                        <img src="{{ asset('storage/' . $option->option_image_url) }}" class="img-thumbnail" style="max-height: 60px;">
+                                    @if(!empty($option['image']))
+                                        <img src="{{ Storage::url($option['image']) }}" class="img-thumbnail" style="max-height: 60px;">
                                     @else
                                         —
                                     @endif
                                 </td>
                                 <td>
-                                    @if($option->label == $option->correct_option)
+                                    @if(($option['label'] ?? '') == ($data['correct_answer'] ?? ''))
                                         <span class="badge badge-success">Correct</span>
                                     @else
                                         —
@@ -95,14 +98,20 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label><strong>Topic</strong></label>
-                            <p>{{ $question->topic ?? '—' }}</p>
+                            <label><strong>Marks</strong></label>
+                            <p>{{ $question->marks ?? '—' }}</p>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label><strong>Marks</strong></label>
-                            <p>{{ $question->marks ?? '—' }}</p>
+                            <label><strong>Correct Answer</strong></label>
+                            <p>
+                                @if(!empty($data['correct_answer']))
+                                    <span class="badge badge-success">{{ $data['correct_answer'] }}</span>
+                                @else
+                                    —
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>

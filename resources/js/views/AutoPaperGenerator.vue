@@ -2,7 +2,7 @@
   <div class="auto-generator">
     <div class="auto-generator-inner">
       <div class="auto-generator-header">
-        <button class="btn btn-sm back-btn" @click="uiStore.setView('home')">
+        <button class="btn btn-sm back-btn" @click="goHome">
           <i class="fa fa-arrow-left"></i> Back to Home
         </button>
         <h3 class="auto-generator-title">Auto Paper Generator</h3>
@@ -13,32 +13,85 @@
           <h5 class="card-title mb-0">Paper Settings</h5>
         </div>
         <div class="card-body">
+          <div class="ag-section-title">Paper Identity</div>
           <div class="row g-3">
             <div class="col-md-6">
               <label class="ag-label">Paper Title</label>
               <input type="text" class="form-control ag-input" v-model="paperTitle" placeholder="e.g. Mid-Term Examination 2025" />
             </div>
             <div class="col-md-6">
+              <label class="ag-label">Paper Code</label>
+              <input type="text" class="form-control ag-input" v-model="paperCode" placeholder="e.g. 5054/11" />
+            </div>
+            <div class="col-md-6">
+              <label class="ag-label">Session</label>
+              <input type="text" class="form-control ag-input" v-model="session" placeholder="e.g. May/June 2025" />
+            </div>
+            <div class="col-md-6">
+              <label class="ag-label">Duration</label>
+              <input type="text" class="form-control ag-input" v-model="duration" placeholder="e.g. 1 hour" />
+            </div>
+          </div>
+
+          <div class="ag-section-title">Institution</div>
+          <div class="row g-3">
+            <div class="col-md-6">
               <label class="ag-label">School Name</label>
               <input type="text" class="form-control ag-input" v-model="schoolName" placeholder="e.g. The City School" />
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="ag-label">Date</label>
               <input type="date" class="form-control ag-input" v-model="paperDate" />
             </div>
-            <div class="col-md-4">
+          </div>
+
+          <div class="ag-section-title">Paper Setup</div>
+          <div class="row g-3">
+            <div class="col-md-6">
               <label class="ag-label">Grade</label>
               <select class="form-select ag-input" v-model="selectedGrade" @change="onGradeChange">
                 <option value="" disabled>Select grade</option>
                 <option v-for="g in gradeList" :key="g" :value="g">{{ g }}</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="ag-label">Subject</label>
               <select class="form-select ag-input" v-model="selectedSubject" :disabled="!selectedGrade" @change="onSubjectChange">
                 <option value="" disabled>Select subject</option>
                 <option v-for="s in availableSubjects" :key="s" :value="s">{{ s }}</option>
               </select>
+            </div>
+          </div>
+
+          <div class="ag-section-title">Additional Materials</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="ag-label">Additional Materials (one per line)</label>
+              <textarea class="form-control ag-input" rows="3" v-model="additionalMaterials"></textarea>
+            </div>
+          </div>
+
+          <div class="ag-section-title">Instructions</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="ag-instructions-preview">{{ instructions }}</div>
+              <button type="button" class="btn btn-sm ag-outline-btn mt-2" @click="editingInstructions = !editingInstructions">
+                {{ editingInstructions ? '✅ Done Editing' : '✏️ Edit Instructions' }}
+              </button>
+              <textarea v-show="editingInstructions" class="form-control ag-input mt-2" rows="10" v-model="instructions"></textarea>
+            </div>
+          </div>
+
+          <div class="ag-section-title">Logo (Optional)</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="ag-label">Institution Logo (Optional)</label>
+              <div class="ag-logo-row">
+                <img v-if="logoDataUrl" class="ag-logo-preview" :src="logoDataUrl" alt="Logo preview" />
+                <button type="button" class="btn btn-sm ag-outline-btn" @click="pickLogo">Choose Logo</button>
+                <button v-if="logoDataUrl" type="button" class="btn btn-sm ag-outline-btn ag-remove-btn" @click="removeLogo">Remove Logo</button>
+              </div>
+              <input ref="logoInput" type="file" accept="image/*" class="d-none" @change="onLogoChange" />
             </div>
           </div>
         </div>
@@ -71,7 +124,20 @@
               </div>
             </div>
             <div class="ag-mcq-content">
-              <div class="ag-mcq-stem" v-html="q.question"></div>
+              <div class="ag-mcq-stem-row">
+                <div class="ag-mcq-stem" v-html="q.stem_text"></div>
+                <img
+                  v-if="q.stem_image"
+                  :src="q.stem_image"
+                  style="max-height: 40px; margin-left: 10px; vertical-align: middle;"
+                  alt="Question image"
+                />
+              </div>
+              <div style="font-size: 0.8em; color: #aaa; margin-left: 24px;">
+                <span v-for="opt in q.options" :key="opt.label" style="margin-right: 16px;">
+                  {{ opt.label }}. {{ opt.text }}
+                </span>
+              </div>
             </div>
           </div>
           <div v-if="questions.length === 0 && !isLoading && !loadError" class="text-center text-muted py-4">
@@ -96,11 +162,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useUiStore } from '../stores/uiStore';
 import { useAutoPaperStore } from '../stores/autoPaperStore';
+import { useToast } from '../composables/useToast';
 
 const uiStore = useUiStore();
+const autoPaperStore = useAutoPaperStore();
+const { showToast } = useToast();
 
 const gradeSubjects = {
   'O Level': ['Physics', 'Chemistry', 'Biology', 'Mathematics', 'Computer Science', 'English Language', 'Urdu', 'Islamiyat', 'Pakistan Studies', 'Economics', 'Commerce', 'Accounting'],
@@ -117,6 +186,14 @@ const schoolName = ref('');
 const paperDate = ref('');
 const selectedGrade = ref('');
 const selectedSubject = ref('');
+const paperCode = ref('');
+const session = ref('');
+const duration = ref('');
+const additionalMaterials = ref(autoPaperStore.additionalMaterials);
+const instructions = ref(autoPaperStore.instructions);
+const logoDataUrl = ref(autoPaperStore.logoDataUrl);
+const editingInstructions = ref(false);
+const logoInput = ref(null);
 
 const availableSubjects = computed(() => {
   return selectedGrade.value ? (gradeSubjects[selectedGrade.value] || []) : [];
@@ -154,10 +231,69 @@ watch(selectedSubject, () => {
   loadError.value = '';
 });
 
+watch(
+  [
+    paperTitle,
+    schoolName,
+    paperDate,
+    selectedGrade,
+    selectedSubject,
+    paperCode,
+    session,
+    duration,
+    additionalMaterials,
+    instructions,
+  ],
+  () => {
+    autoPaperStore.setPaperMeta({
+      title: paperTitle.value,
+      school: schoolName.value,
+      date: paperDate.value,
+      grade: selectedGrade.value,
+      subject: selectedSubject.value,
+      paperCode: paperCode.value,
+      session: session.value,
+      duration: duration.value,
+      additionalMaterials: additionalMaterials.value,
+      instructions: instructions.value,
+    });
+  }
+);
+
 function onGradeChange() {}
 function onSubjectChange() {}
 
-async function loadMcqs() {
+function pickLogo() {
+  if (logoInput.value) logoInput.value.click();
+}
+
+function onLogoChange(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    logoDataUrl.value = dataUrl;
+    autoPaperStore.setLogo({ file, dataUrl });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeLogo() {
+  logoDataUrl.value = null;
+  autoPaperStore.setLogo({ file: null, dataUrl: null });
+}
+
+function goHome() {
+  if (window.authUser?.role === 'admin') {
+    uiStore.setView('home');
+  } else {
+    window.location.href = '/user/dashboard';
+  }
+}
+
+async function loadMcqs(preSelectedIds) {
   isLoading.value = true;
   loadError.value = '';
   questions.value = [];
@@ -176,6 +312,15 @@ async function loadMcqs() {
       questions.value = response.data.data;
       hasLoaded.value = true;
 
+      if (preSelectedIds && preSelectedIds.length) {
+        const idSet = new Set(preSelectedIds);
+        selectedIds.value = new Set(
+          questions.value
+            .filter((q) => idSet.has(q.id))
+            .map((q) => q.id)
+        );
+      }
+
       if (questions.value.length === 0) {
         loadError.value = 'No MCQs found for this grade and subject.';
       }
@@ -188,6 +333,70 @@ async function loadMcqs() {
     isLoading.value = false;
   }
 }
+
+async function loadPaperForEdit(paperId) {
+  try {
+    const { data } = await window.axios.get(`/api/user/papers/${paperId}`);
+    const pd = data.paper_data || {};
+
+    // Keep the paper id so the preview's "Save" updates instead of duplicating.
+    window.initialPaperId = Number(paperId);
+
+    autoPaperStore.setPaperMeta({
+      title: pd.paperTitle ?? '',
+      school: pd.schoolName ?? '',
+      date: pd.paperDate ?? '',
+      grade: pd.grade ?? '',
+      subject: pd.subject ?? '',
+      paperCode: pd.paperCode ?? '',
+      session: pd.session ?? '',
+      duration: pd.duration ?? '',
+      additionalMaterials: pd.additionalMaterials ?? undefined,
+      instructions: pd.instructions ?? undefined,
+    });
+    autoPaperStore.setLogo({ file: null, dataUrl: pd.logoDataUrl ?? null });
+    autoPaperStore.setSelectedMcqs(pd.selectedMcqs ?? []);
+
+    // Mirror store state into the local form refs.
+    paperTitle.value = autoPaperStore.paperTitle;
+    schoolName.value = autoPaperStore.schoolName;
+    paperDate.value = autoPaperStore.paperDate;
+    paperCode.value = autoPaperStore.paperCode;
+    session.value = autoPaperStore.session;
+    duration.value = autoPaperStore.duration;
+    additionalMaterials.value = autoPaperStore.additionalMaterials;
+    instructions.value = autoPaperStore.instructions;
+    logoDataUrl.value = autoPaperStore.logoDataUrl;
+
+    const gradeToSet = autoPaperStore.grade;
+    const subjectToSet = autoPaperStore.subject;
+
+    // Set grade first, then subject — but the grade watcher resets subject,
+    // so restore the subject after watchers flush.
+    selectedGrade.value = gradeToSet;
+    await nextTick();
+    selectedSubject.value = subjectToSet;
+
+    const preSelectedIds = (pd.selectedMcqs ?? []).map((q) => q.id);
+
+    if (selectedGrade.value && selectedSubject.value) {
+      await loadMcqs(preSelectedIds);
+    }
+
+    showToast('Paper loaded for editing.', 'success');
+  } catch (err) {
+    console.error('Failed to load paper for editing:', err);
+    showToast('Failed to load paper for editing.', 'error');
+  }
+}
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  const paperId = params.get('paper_id');
+  if (paperId) {
+    loadPaperForEdit(paperId);
+  }
+});
 
 function toggleQuestion(id) {
   const newSet = new Set(selectedIds.value);
@@ -208,13 +417,17 @@ function deselectAll() {
 }
 
 function generatePaper() {
-  const autoPaperStore = useAutoPaperStore();
   autoPaperStore.setPaperMeta({
     title: paperTitle.value.trim(),
     school: schoolName.value.trim(),
     date: paperDate.value,
     grade: selectedGrade.value,
     subject: selectedSubject.value,
+    paperCode: paperCode.value.trim(),
+    session: session.value.trim(),
+    duration: duration.value.trim(),
+    additionalMaterials: additionalMaterials.value,
+    instructions: instructions.value,
   });
   autoPaperStore.setSelectedMcqs(
     questions.value.filter((q) => selectedIds.value.has(q.id))
@@ -226,6 +439,8 @@ function generatePaper() {
 <style scoped>
 .auto-generator {
   height: 100%;
+  min-height: 0;
+  grid-row: 1 / -1;
   overflow-y: auto;
   background: var(--bg-primary);
 }
@@ -312,6 +527,63 @@ function generatePaper() {
 .ag-input:focus {
   border-color: var(--accent-2);
   box-shadow: none;
+}
+
+.ag-section-title {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 16px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ag-section-title:first-child {
+  margin-top: 0;
+}
+
+.ag-instructions-preview {
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ag-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ag-logo-preview {
+  max-height: 60px;
+  max-width: 140px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 2px;
+  object-fit: contain;
+}
+
+.ag-remove-btn {
+  color: #d9534f;
+  border-color: #d9534f;
+}
+
+.ag-remove-btn:hover {
+  background: #d9534f;
+  color: #fff;
+  border-color: #d9534f;
 }
 
 .load-bar {
@@ -443,6 +715,34 @@ function generatePaper() {
   color: var(--text-primary);
   margin-bottom: 4px;
   line-height: 1.5;
+}
+
+.ag-mcq-stem-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ag-mcq-stem-img {
+  max-height: 40px;
+  max-width: 120px;
+  object-fit: contain;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ag-mcq-options-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 2px;
+}
+
+.ag-mcq-opt-chip {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--text-secondary);
 }
 
 

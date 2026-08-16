@@ -16,7 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
 
-        $middleware->redirectUsersTo('/');
+        $middleware->redirectUsersTo(function ($request) {
+            $user = auth()->user();
+            if (! $user) {
+                return '/';
+            }
+
+            return $user->isAdmin() ? route('admin.dashboard') : route('user.dashboard');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -17,10 +17,6 @@
             margin-top: 5px;
             display: none;
         }
-        .step-pill {
-            display: inline-flex;
-            align-items: center;
-        }
     </style>
 @endsection
 
@@ -35,117 +31,89 @@
                     <h3 class="card-title">New Question</h3>
                 </div>
 
-                {{-- Step Indicator --}}
-                <div class="card-body border-bottom pb-2">
-                    <div class="d-flex">
-                        <div class="step-pill mr-2">
-                            <span class="badge badge-primary" id="step-1-badge">1</span>
-                            <span class="ml-1" id="step-1-label">Question Details</span>
-                        </div>
-                        <div class="step-pill">
-                            <span class="badge badge-light border" id="step-2-badge">2</span>
-                            <span class="ml-1" id="step-2-label">Answer Options</span>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="card-body">
-                    {{-- ============================================================
-                         STEP 1 — Question Details
-                    ============================================================ --}}
-                    <div id="step-1">
-                        <h5 class="mb-3">Step 1 of 2 — Question Details</h5>
-
-                        <div class="form-group row">
-                            <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
-                            <div class="col-sm-4">
-                                <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
-                                    <option value="">— Select Grade —</option>
-                                    <option value="O Level"   {{ old('grade') == 'O Level'    ? 'selected' : '' }}>O Level</option>
-                                    <option value="A Level"   {{ old('grade') == 'A Level'    ? 'selected' : '' }}>A Level</option>
-                                    <option value="8th Grade" {{ old('grade') == '8th Grade'  ? 'selected' : '' }}>8th Grade</option>
-                                    <option value="9th Grade" {{ old('grade') == '9th Grade'  ? 'selected' : '' }}>9th Grade</option>
-                                    <option value="10th Grade"{{ old('grade') == '10th Grade' ? 'selected' : '' }}>10th Grade</option>
-                                </select>
-                                @error('grade')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
-                            <div class="col-sm-4">
-                                <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required disabled>
-                                    <option value="">— Select Grade First —</option>
-                                </select>
-                                @error('subject')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="question_text">Question Text</label>
-                            <textarea name="question_text" id="question_text" class="form-control @error('question_text') is-invalid @enderror" rows="5" placeholder="Enter question text here...">{{ old('question_text') }}</textarea>
-                            <small id="char-count" class="form-text text-muted">0 characters</small>
-                            @error('question_text')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                    {{-- Grade + Subject + Marks --}}
+                    <div class="form-group row">
+                        <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
+                        <div class="col-sm-3">
+                            <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
+                                <option value="">— Select Grade —</option>
+                                <option value="O Level"   {{ old('grade') == 'O Level'    ? 'selected' : '' }}>O Level</option>
+                                <option value="A Level"   {{ old('grade') == 'A Level'    ? 'selected' : '' }}>A Level</option>
+                                <option value="8th Grade" {{ old('grade') == '8th Grade'  ? 'selected' : '' }}>8th Grade</option>
+                                <option value="9th Grade" {{ old('grade') == '9th Grade'  ? 'selected' : '' }}>9th Grade</option>
+                                <option value="10th Grade"{{ old('grade') == '10th Grade' ? 'selected' : '' }}>10th Grade</option>
+                            </select>
+                            @error('grade')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                            <div id="step1-error" class="text-danger small" style="display: none;">Please enter question text or select an image.</div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="question_image">Question Image (Optional)</label>
-                            <div class="input-group">
-                                <div class="custom-file">
-                                    <input type="file" name="question_image" class="custom-file-input @error('question_image') is-invalid @enderror" id="question_image" onchange="previewImage(this, 'preview-container')">
-                                    <label class="custom-file-label" for="question_image">Choose image</label>
-                                </div>
-                            </div>
-                            <div id="preview-container" class="mt-3" style="display: none;">
-                                <img id="image-preview" src="#" alt="Preview" class="img-fluid rounded border" style="max-height: 250px;">
-                            </div>
+                        <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
+                        <div class="col-sm-3">
+                            <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required disabled>
+                                <option value="">— Select Grade First —</option>
+                            </select>
+                            @error('subject')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <label for="marks" class="col-sm-1 col-form-label">Marks</label>
+                        <div class="col-sm-1">
+                            <input type="number" name="marks" id="marks" class="form-control" min="0" value="{{ old('marks', 1) }}">
                         </div>
                     </div>
 
-                    {{-- ============================================================
-                         STEP 2 — Answer Options
-                    ============================================================ --}}
-                    <div id="step-2" style="display: none;">
-                        <h5 class="mb-3">Step 2 of 2 — Answer Options</h5>
+                    {{-- Stem text + image --}}
+                    <div class="form-group">
+                        <label for="stem_text">Question Text <span class="text-danger">*</span></label>
+                        <textarea name="stem_text" id="stem_text" class="form-control @error('stem_text') is-invalid @enderror" rows="4" placeholder="Enter question text here...">{{ old('stem_text') }}</textarea>
+                        @error('stem_text')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
 
-                        @php
-                            $optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
-                        @endphp
+                    <div class="form-group">
+                        <label for="stem_image">Question Image (optional)</label>
+                        <div class="input-group">
+                            <div class="custom-file">
+                                <input type="file" name="stem_image" class="custom-file-input @error('stem_image') is-invalid @enderror" id="stem_image" onchange="previewImage(this, 'stem-preview-container')">
+                                <label class="custom-file-label" for="stem_image">Choose image</label>
+                            </div>
+                        </div>
+                        @error('stem_image')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        <div id="stem-preview-container" class="mt-3" style="display: none;">
+                            <img id="stem-image-preview" src="#" alt="Preview" class="img-fluid rounded border" style="max-height: 200px;">
+                        </div>
+                    </div>
 
-                        @foreach($optionLabels as $opt)
-                            <div class="option-row card card-light border mb-3 {{ $opt <= 'D' ? '' : 'd-none' }}" data-label="{{ $opt }}" id="option-row-{{ $opt }}">
-                                <div class="card-body">
-                                    @if($opt > 'D')
-                                        <span class="text-danger float-right remove-option-btn" style="cursor: pointer;" onclick="removeOption('{{ $opt }}')">
-                                            <i class="fas fa-times-circle"></i> Remove
-                                        </span>
-                                    @endif
+                    <hr>
 
-                                    <div class="d-flex align-items-center mb-2">
-                                        <span class="badge badge-primary mr-2">Option {{ $opt }}</span>
-                                        <div class="icheck-success d-inline">
-                                            <input type="radio" name="correct_option" value="{{ $opt }}" id="correct_{{ $opt }}">
-                                            <label for="correct_{{ $opt }}">Mark as Correct</label>
-                                        </div>
+                    {{-- Options A-D + correct answer --}}
+                    <h5>Answer Options</h5>
+                    @foreach(['A', 'B', 'C', 'D'] as $opt)
+                        @php $lower = strtolower($opt); @endphp
+                        <div class="card card-light border mb-3">
+                            <div class="card-body py-2">
+                                <div class="row align-items-end">
+                                    <div class="col-sm-2">
+                                        <span class="badge badge-primary">Option {{ $opt }}</span>
                                     </div>
-
-                                    <div class="form-group">
-                                        <label>Option Text</label>
-                                        <input type="text" name="options[{{ $opt }}][text]" class="form-control" placeholder="Enter option text">
+                                    <div class="col-sm-6">
+                                        <label for="option_{{ $lower }}_text" class="mb-0">Text</label>
+                                        <input type="text" name="option_{{ $lower }}_text" id="option_{{ $lower }}_text" class="form-control @error('option_'.$lower.'_text') is-invalid @enderror" placeholder="Enter option {{ $opt }} text" value="{{ old('option_'.$lower.'_text') }}">
+                                        @error('option_'.$lower.'_text')
+                                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        @enderror
                                     </div>
-
-                                    <div class="form-group mb-0">
-                                        <label>Option Image (Optional)</label>
-                                        <div class="input-group">
-                                            <div class="custom-file">
-                                                <input type="file" name="options[{{ $opt }}][image]" class="custom-file-input" id="option_image_{{ $opt }}" onchange="previewOptionImage(this, 'option-preview-{{ $opt }}')">
-                                                <label class="custom-file-label" for="option_image_{{ $opt }}">Choose image</label>
-                                            </div>
+                                    <div class="col-sm-4">
+                                        <label for="option_{{ $lower }}_image" class="mb-0">Image (optional)</label>
+                                        <div class="custom-file">
+                                            <input type="file" name="option_{{ $lower }}_image" class="custom-file-input" id="option_{{ $lower }}_image" onchange="previewOptionImage(this, 'option-preview-{{ $opt }}')">
+                                            <label class="custom-file-label" for="option_{{ $lower }}_image">Choose image</label>
                                         </div>
                                         <div id="option-preview-{{ $opt }}" class="mt-2">
                                             <img src="#" class="option-preview-img img-thumbnail" alt="Option {{ $opt }} Preview">
@@ -153,23 +121,28 @@
                                     </div>
                                 </div>
                             </div>
-                        @endforeach
-
-                        <div id="add-option-btn-wrap" class="mb-3">
-                            <button type="button" class="btn btn-outline-success btn-sm" id="add-option-btn" onclick="addOption()">
-                                <i class="fas fa-plus"></i> <span id="add-option-text">Add Option E</span>
-                            </button>
                         </div>
+                    @endforeach
 
-                        <div id="step2-error" class="text-danger small mb-2" style="display: none;">Please mark one option as the correct answer.</div>
+                    <div class="form-group">
+                        <label>Correct Answer <span class="text-danger">*</span></label>
+                        <div class="d-flex">
+                            @foreach(['A', 'B', 'C', 'D'] as $opt)
+                                <div class="icheck-success d-inline mr-4">
+                                    <input type="radio" name="correct_answer" value="{{ $opt }}" id="correct_{{ $opt }}" {{ old('correct_answer') == $opt ? 'checked' : '' }}>
+                                    <label for="correct_{{ $opt }}">{{ $opt }}</label>
+                                </div>
+                            @endforeach
+                        </div>
+                        @error('correct_answer')
+                            <div class="text-danger small">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
 
                 <div class="card-footer">
-                    <a href="{{ route('admin.questions.index') }}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                    <button type="button" id="nextToStep2" class="btn btn-primary float-right">Next →</button>
-                    <button type="button" id="backToStep1" class="btn btn-default" style="display: none;">← Back</button>
-                    <button type="submit" id="save-question-btn" class="btn btn-success float-right" style="display: none;">Save Question</button>
+                    <a href="{{ route('admin.questions.index') }}" class="btn btn-default">Cancel</a>
+                    <button type="submit" class="btn btn-primary float-right">Save Question</button>
                 </div>
             </div>
         </form>
@@ -182,133 +155,11 @@
     <script src="{{ asset('adminlte/plugins/bs-custom-file-input/bs-custom-file-input.min.js') }}"></script>
 
     <script>
-        const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
-        const maxOptions = 6;
-        let visibleOptionCount = 4;
-
         $(function () {
-            // Initialize custom file input for all file inputs
             if (typeof bsCustomFileInput !== 'undefined') {
                 bsCustomFileInput.init();
             }
-
-            // Live character counter for question_text
-            $('#question_text').on('input', function () {
-                $('#char-count').text($(this).val().length + ' characters');
-            });
-
-            // ── Step navigation ────────────────────────────────────────────
-            $('#nextToStep2').on('click', function () {
-                if (!validateStep1()) return;
-                showStep(2);
-            });
-
-            $('#backToStep1').on('click', function () {
-                showStep(1);
-            });
-
-            // ── Correct-answer validation on submit ─────────────────────────
-            $('#question-form').on('submit', function (e) {
-                if (!$('input[name="correct_option"]:checked').length) {
-                    e.preventDefault();
-                    showStep(2);
-                    $('#step2-error').show();
-                    return false;
-                }
-                $('#step2-error').hide();
-            });
         });
-
-        // ── Step 1 validation ───────────────────────────────────────────────
-        function validateStep1() {
-            const hasText = $('#question_text').val().trim().length > 0;
-            const hasImage = $('#question_image').get(0).files.length > 0;
-            const hasError = !hasText && !hasImage;
-
-            $('#step1-error').toggle(hasError);
-            $('#question_text').toggleClass('is-invalid', hasError);
-            $('#question_image').toggleClass('is-invalid', hasError);
-
-            return !hasError;
-        }
-
-        // ── Step switching ──────────────────────────────────────────────────
-        function showStep(step) {
-            const onStep2 = step === 2;
-            $('#step-1').toggle(!onStep2);
-            $('#step-2').toggle(onStep2);
-
-            $('#nextToStep2').toggle(!onStep2);
-            $('#cancel-btn').toggle(!onStep2);
-            $('#backToStep1').toggle(onStep2);
-            $('#save-question-btn').toggle(onStep2);
-
-            // Update step indicator pills
-            $('#step-1-badge')
-                .removeClass('badge-primary badge-success badge-light border')
-                .addClass(onStep2 ? 'badge-success' : 'badge-primary');
-            $('#step-2-badge')
-                .removeClass('badge-primary badge-success badge-light border')
-                .addClass(onStep2 ? 'badge-primary' : 'badge-light border');
-
-            $('#step-1-label').css('color', onStep2 ? '#28a745' : '');
-            $('#step-2-label').css('color', onStep2 ? '' : '#6c757d');
-
-            if (onStep2) {
-                // Re-init custom file inputs (dynamic E/F rows may have been added)
-                if (typeof bsCustomFileInput !== 'undefined') {
-                    bsCustomFileInput.destroy();
-                    bsCustomFileInput.init();
-                }
-            }
-        }
-
-        // ── Dynamic Option E / F ────────────────────────────────────────────
-        function addOption() {
-            if (visibleOptionCount >= maxOptions) return;
-
-            visibleOptionCount++;
-            const nextLabel = optionLabels[visibleOptionCount - 1];
-            $('#option-row-' + nextLabel).removeClass('d-none');
-
-            updateAddButton();
-        }
-
-        function removeOption(label) {
-            // Only allow removing E and F
-            if (label !== 'E' && label !== 'F') return;
-
-            // Remove F too if E is removed while F is visible (options must be contiguous)
-            if (label === 'E' && visibleOptionCount === 6) {
-                hideOptionRow('F');
-            }
-            hideOptionRow(label);
-        }
-
-        function hideOptionRow(label) {
-            const row = $('#option-row-' + label);
-
-            // Clear inputs
-            row.find('input[type="text"]').val('');
-            row.find('input[type="file"]').val('');
-            row.find('.custom-file-label').text('Choose image');
-            row.find('.option-preview-img').hide().attr('src', '#');
-            row.find('input[type="radio"]').prop('checked', false);
-
-            row.addClass('d-none');
-            visibleOptionCount--;
-
-            updateAddButton();
-        }
-
-        function updateAddButton() {
-            if (visibleOptionCount >= maxOptions) {
-                $('#add-option-btn-wrap').hide();
-            } else {
-                $('#add-option-btn-wrap').show();
-                $('#add-option-text').text('Add Option ' + optionLabels[visibleOptionCount]);
-            }
-        }
 
         // ── Grade → Subject cascade ────────────────────────────────────────
         const gradeSubjects = {
@@ -347,17 +198,15 @@
 
         // ── Image previews ──────────────────────────────────────────────────
         function previewImage(input, containerId) {
-            const preview = document.getElementById('image-preview');
+            const preview = document.getElementById('stem-image-preview');
             const container = document.getElementById(containerId);
 
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-
                 reader.onload = function (e) {
                     preview.src = e.target.result;
                     container.style.display = 'block';
-                }
-
+                };
                 reader.readAsDataURL(input.files[0]);
             } else {
                 container.style.display = 'none';
@@ -369,12 +218,10 @@
 
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-
                 reader.onload = function (e) {
                     preview.src = e.target.result;
                     preview.style.display = 'block';
-                }
-
+                };
                 reader.readAsDataURL(input.files[0]);
             }
         }

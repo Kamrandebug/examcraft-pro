@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\QuestionBank;
-use App\Models\QuestionBankOption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class QuestionBankController extends Controller
 {
@@ -14,9 +14,7 @@ class QuestionBankController extends Controller
      */
     public function index()
     {
-        $questions = QuestionBank::with('options')
-                                 ->latest()
-                                 ->get();
+        $questions = QuestionBank::latest()->get();
 
         return view('admin.questions.index', compact('questions'));
     }
@@ -35,64 +33,34 @@ class QuestionBankController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'question_text' => 'required_without:question_image',
-            'question_image' => 'required_without:question_text|image|max:2048',
+            'subject'       => 'required|string|max:100',
+            'grade'         => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
+            'marks'         => 'nullable|integer|min:0',
 
-            'grade'   => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
-            'subject' => 'required|string|max:100',
+            'stem_text'     => 'required_without:stem_image',
+            'stem_image'    => 'nullable|image|max:2048',
 
-            // Options A-D are mandatory: text or image required for each.
-            'options.A.text' => 'required_without:options.A.image',
-            'options.A.image' => 'required_without:options.A.text|image|max:2048',
-            'options.B.text' => 'required_without:options.B.image',
-            'options.B.image' => 'required_without:options.B.text|image|max:2048',
-            'options.C.text' => 'required_without:options.C.image',
-            'options.C.image' => 'required_without:options.C.text|image|max:2048',
-            'options.D.text' => 'required_without:options.D.image',
-            'options.D.image' => 'required_without:options.D.text|image|max:2048',
+            'option_a_text' => 'required_without:option_a_image',
+            'option_a_image' => 'nullable|image|max:2048',
+            'option_b_text' => 'required_without:option_b_image',
+            'option_b_image' => 'nullable|image|max:2048',
+            'option_c_text' => 'required_without:option_c_image',
+            'option_c_image' => 'nullable|image|max:2048',
+            'option_d_text' => 'required_without:option_d_image',
+            'option_d_image' => 'nullable|image|max:2048',
 
-            // Options E/F are optional, but image (if provided) must be valid.
-            'options.E.text' => 'nullable',
-            'options.E.image' => 'nullable|image|max:2048',
-            'options.F.text' => 'nullable',
-            'options.F.image' => 'nullable|image|max:2048',
-
-            'correct_option' => 'required|in:A,B,C,D,E,F',
+            'correct_answer' => 'required|in:A,B,C,D',
         ]);
 
-        $data = $request->only(['question_text', 'grade', 'subject']);
-        // Temporarily fallback to first user if not authenticated since auth is disabled
-        $data['user_id'] = Auth::id() ?? (\App\Models\User::first()->id ?? 1);
+        $data = $this->buildData($request, null);
 
-        if ($request->hasFile('question_image')) {
-            $path = $request->file('question_image')->store('questions', 'public');
-            $data['question_image'] = $path;
-        }
-
-        $question = QuestionBank::create($data);
-
-        // Save options for the question. The question_bank_options table stores
-        // one wide row per question (option_a_text .. option_f_image + correct_option).
-        $optionData = [
-            'question_id'  => $question->id,
-            'correct_option' => $request->input('correct_option'),
-        ];
-
-        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $label) {
-            $opt = strtolower($label);
-            $fieldText = "option_{$opt}_text";
-            $fieldImage = "option_{$opt}_image";
-
-            $optionData[$fieldText] = $request->input("options.{$label}.text") ?? null;
-
-            if ($request->hasFile("options.{$label}.image")) {
-                $optionData[$fieldImage] = $request->file("options.{$label}.image")->store('options', 'public');
-            } else {
-                $optionData[$fieldImage] = null;
-            }
-        }
-
-        QuestionBankOption::updateOrCreate(['question_id' => $question->id], $optionData);
+        QuestionBank::create([
+            'user_id' => Auth::id() ?? (\App\Models\User::first()->id ?? 1),
+            'subject' => $request->input('subject'),
+            'grade'   => $request->input('grade'),
+            'marks'   => $request->input('marks', 1),
+            'data'    => $data,
+        ]);
 
         return redirect()->route('admin.questions.index')
                          ->with('success', 'Question and options saved successfully.');
@@ -103,8 +71,6 @@ class QuestionBankController extends Controller
      */
     public function show(QuestionBank $question)
     {
-        $question->load('options');
-
         return view('admin.questions.show', compact('question'));
     }
 
@@ -113,8 +79,6 @@ class QuestionBankController extends Controller
      */
     public function edit(QuestionBank $question)
     {
-        $question->load('options');
-
         return view('admin.questions.edit', compact('question'));
     }
 
@@ -123,27 +87,32 @@ class QuestionBankController extends Controller
      */
     public function update(Request $request, QuestionBank $question)
     {
-        $validated = $request->validate([
-            'source_paper_code' => 'nullable|string|max:50',
-            'session'           => 'nullable|string|max:50',
-            'year'              => 'nullable|digits:4',
-            'grade'             => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
-            'subject'           => 'required|string|max:100',
-            'topic'             => 'nullable|string|max:255',
-            'difficulty'        => 'nullable|string|in:easy,medium,hard',
-            'question_text'     => 'required|string',
-            'question_image'    => 'nullable|image|max:2048',
-            'option_type'       => 'nullable|string|max:50',
-            'correct_answer'    => 'nullable|string|max:10',
-            'marks'             => 'nullable|integer|min:0',
-            'metadata'          => 'nullable|array',
+        $request->validate([
+            'subject'       => 'required|string|max:100',
+            'grade'         => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
+            'marks'         => 'nullable|integer|min:0',
+
+            'stem_text'     => 'required_without:stem_image',
+            'stem_image'    => 'nullable|image|max:2048',
+
+            'option_a_text' => 'required_without:option_a_image',
+            'option_a_image' => 'nullable|image|max:2048',
+            'option_b_text' => 'required_without:option_b_image',
+            'option_b_image' => 'nullable|image|max:2048',
+            'option_c_text' => 'required_without:option_c_image',
+            'option_c_image' => 'nullable|image|max:2048',
+            'option_d_text' => 'required_without:option_d_image',
+            'option_d_image' => 'nullable|image|max:2048',
+
+            'correct_answer' => 'required|in:A,B,C,D',
         ]);
 
-        if ($request->hasFile('question_image')) {
-            $validated['question_image'] = $request->file('question_image')->store('questions', 'public');
-        }
-
-        $question->update($validated);
+        $question->update([
+            'subject' => $request->input('subject'),
+            'grade'   => $request->input('grade'),
+            'marks'   => $request->input('marks', $question->marks ?? 1),
+            'data'    => $this->buildData($request, $question->data),
+        ]);
 
         return redirect()->route('admin.questions.show', $question)
                          ->with('success', 'Question updated successfully.');
@@ -172,33 +141,33 @@ class QuestionBankController extends Controller
             ], 422);
         }
 
-        $questions = QuestionBank::with('options')
-            ->where('grade', $grade)
+        $questions = QuestionBank::where('grade', $grade)
             ->where('subject', $subject)
             ->get()
             ->map(function ($q) {
-                $opt = $q->options->first();
+                $data = $q->data ?? [];
 
-                $optionsList = [];
-                $letters = ['A', 'B', 'C', 'D'];
+                $options = array_map(function ($opt) {
+                    $image = $opt['image'] ?? null;
 
-                if ($opt) {
-                    foreach ($letters as $letter) {
-                        $lower = strtolower($letter);
-                        $text = $opt->{'option_' . $lower . '_text'} ?? null;
-                        if ($text !== null) {
-                            $optionsList[] = [
-                                'label' => $letter,
-                                'option_text' => $text,
-                            ];
-                        }
-                    }
-                }
+                    return [
+                        'label' => $opt['label'] ?? null,
+                        'text'  => $opt['text'] ?? null,
+                        'image' => $image ? Storage::url($image) : null,
+                    ];
+                }, $data['options'] ?? []);
+
+                $stemImage = $data['stem_image'] ?? null;
 
                 return [
-                    'id'       => $q->id,
-                    'question' => $q->question_text,
-                    'options'  => $optionsList,
+                    'id'             => $q->id,
+                    'subject'        => $q->subject,
+                    'grade'          => $q->grade,
+                    'marks'          => $q->marks,
+                    'stem_text'      => $data['stem_text'] ?? null,
+                    'stem_image'     => $stemImage ? Storage::url($stemImage) : null,
+                    'options'        => $options,
+                    'correct_answer' => $data['correct_answer'] ?? null,
                 ];
             });
 
@@ -206,5 +175,59 @@ class QuestionBankController extends Controller
             'success' => true,
             'data'    => $questions,
         ]);
+    }
+
+    /**
+     * Build the `data` JSON array from the request.
+     *
+     * @param  array|null  $existing  The question's current `data` array (for update).
+     */
+    private function buildData(Request $request, ?array $existing): array
+    {
+        $data = [
+            'stem_text'      => $request->input('stem_text'),
+            'stem_image'     => $existing['stem_image'] ?? null,
+            'options'        => $this->buildOptions($request, $existing['options'] ?? []),
+            'correct_answer' => $request->input('correct_answer'),
+        ];
+
+        // Stem image — replace only if a new file is uploaded.
+        if ($request->hasFile('stem_image')) {
+            $data['stem_image'] = $request->file('stem_image')->store('questions', 'public');
+        }
+
+        return $data;
+    }
+
+    /**
+     * Build the options array from the request, preserving existing images
+     * when no new file is provided for an option.
+     */
+    private function buildOptions(Request $request, array $existingOptions): array
+    {
+        $existingByLabel = [];
+        foreach ($existingOptions as $opt) {
+            $existingByLabel[$opt['label'] ?? ''] = $opt;
+        }
+
+        $options = [];
+        foreach (['A', 'B', 'C', 'D'] as $label) {
+            $lower = strtolower($label);
+            $textKey  = "option_{$lower}_text";
+            $imageKey = "option_{$lower}_image";
+
+            $image = $existingByLabel[$label]['image'] ?? null;
+            if ($request->hasFile($imageKey)) {
+                $image = $request->file($imageKey)->store('options', 'public');
+            }
+
+            $options[] = [
+                'label' => $label,
+                'text'  => $request->input($textKey),
+                'image' => $image,
+            ];
+        }
+
+        return $options;
     }
 }

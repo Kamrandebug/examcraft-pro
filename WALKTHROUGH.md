@@ -1,6 +1,11 @@
 # ExamCraft Pro v36 — Modern Migration Walkthrough
 
 This document provides a comprehensive technical overview of the **ExamCraft Pro v36** project. It serves as a source of truth for understanding the architecture, feature set, and implementation details of the migration from a monolithic HTML template to a professional full-stack application.
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan event:clear
 
 ---
 
@@ -113,9 +118,10 @@ examcraft-pro/
 │       │   ├── papers/                      → Exam papers views (index, create, show, edit)
 │       │   └── dashboard.blade.php           → Dashboard landing page
 │       ├── auth/                             → Blade templates for Login/Register (Breeze v2.4.2)
-│       │   ├── login.blade.php                → Login form
-│       │   ├── register.blade.php             → Registration form
-│       │   ├── forgot-password.blade.php       → Password reset request
+│       │   ├── combined.blade.php              → Flip-card Login/Register (standalone full-page; the active view)
+│       │   ├── login.blade.php                → Login form (legacy — kept as backup)
+│       │   ├── register.blade.php             → Registration form (legacy — kept as backup)
+│       │   ├── forgot-password.blade.php       → Password reset request (standalone full-page redesign)
 │       │   ├── reset-password.blade.php        → New password form
 │       │   ├── verify-email.blade.php          → Email verification notice
 │       │   └── confirm-password.blade.php      → Password confirmation gate
@@ -300,9 +306,10 @@ Two legacy controllers (`LoginController.php`, `RegisterController.php`) remain 
 ### Breeze Auth Views (`resources/views/auth/`)
 | View | Purpose |
 |------|---------|
-| `login.blade.php` | Login form |
-| `register.blade.php` | Registration form |
-| `forgot-password.blade.php` | Password reset request |
+| `combined.blade.php` | Flip-card Login/Register — the active auth view (see §8.5) |
+| `login.blade.php` | Login form (legacy — kept as backup, not routed) |
+| `register.blade.php` | Registration form (legacy — kept as backup, not routed) |
+| `forgot-password.blade.php` | Password reset request (standalone full-page redesign, see §8.6) |
 | `reset-password.blade.php` | New password form |
 | `verify-email.blade.php` | Email verification prompt |
 | `confirm-password.blade.php` | Confirm password gate |
@@ -331,6 +338,23 @@ All Breeze auth routes live in a separate file required at the bottom of `routes
 ### Other Breeze Additions
 - **`ProfileController.php`** — handles profile edit (`profile.edit`), update (`profile.update`), and account deletion (`profile.destroy`) under `auth` middleware. Views live in `resources/views/profile/`.
 - **`dashboard.blade.php`** — the Breeze default authenticated dashboard is no longer used; `/dashboard` now redirects to `/` (the SPA).
+
+### 8.5 Flip-Card Auth Redesign (August 13, 2026)
+
+The default Breeze login/register forms were replaced with a single **flip-card** experience matching the landing page design system.
+
+- **New view** `resources/views/auth/combined.blade.php` — a standalone full-page Blade view (owns its own `<!DOCTYPE html>`…`</html>`, no layout extension) containing **both** the login and register forms in one 3D flip-card. The front face is "Welcome back" (login); the back face is "Create your account" (register).
+- **Controller wiring** — `AuthenticatedSessionController::create()` now returns `view('auth.combined', ['active' => 'login'])`; `RegisteredUserController::create()` returns `view('auth.combined', ['active' => 'register'])`. The `$active` value controls the initial `is-flipped` class on the card.
+- **Flip mechanics** — pure CSS 3D transform (`rotateY(180deg)` on `.flip-card.is-flipped`, `preserve-3d`, `backface-visibility: hidden`). A small vanilla JS IIFE (inlined in the view) toggles the class on `.flip-trigger` clicks and syncs the `.flip-scene` height (login vs register face have different heights) by temporarily un-absolutifying the back face to measure its true height. No page reload on flip.
+- **Validation handling** — a failed login/register POST redirects back to `/login` or `/register`, whose `create()` method re-renders `combined.blade.php` with the correct `$active`, so the right face is shown with its red field errors. Field errors are conditionally applied per-face (e.g. `$errors->has('email') && $active === 'login'`).
+- **Legacy views retained** — `login.blade.php` and `register.blade.php` are kept as backups but are no longer routed.
+
+### 8.6 Forgot-Password Redesign + Stale Vite Hot-File Cleanup (August 13, 2026)
+
+Two further fixes shipped alongside the flip-card:
+
+1. **`forgot-password.blade.php` redesign** — the default Breeze `<x-guest-layout>` version was replaced with a standalone full-page view matching the combined auth design system (navy gradient, gold dot-grid, EB Garamond/Inter fonts, gold-top-bordered card). It includes a `session('status')` message block, a "Back to sign in" link (`route('login')`), and the bottom trust line — consistent with `combined.blade.php`. The reset link still posts to `route('password.email')`; no controller/route changes were needed.
+2. **Stale Vite hot-file cleanup** (`app/Providers/AppServiceProvider.php`) — `npm run dev` (Vite) writes `public/hot` so `@vite` loads assets from the dev server. If the server stops but the file lingers, `@vite` points at a dead port and the app renders a blank screen. The `boot()` method now calls `cleanupStaleViteHotFile()`, which reads `public/hot`, probes the referenced host:port with a fast `fsockopen` (0.3s timeout), and `@unlink`s the file if the server is no longer listening — falling back to compiled `public/build` assets automatically.
 
 ### Role-Based Access Control (RBAC)
 - **Architecture**: Decoupled from the `users` table. Uses a dedicated `roles` table linked via `user_id` for better scalability.
@@ -415,8 +439,8 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 5.  **Post-Breeze Checks**: After any Breeze reinstall, verify: (a) `resources/css/app.css` still contains ~1,700 lines of theme CSS (not just 3 Tailwind directives), (b) `AuthenticatedSessionController::store()` redirects to `'/'` not `route('dashboard')`, (c) `bootstrap/app.php` has `$middleware->redirectUsersTo('/')` AND registers `api:` routing, (d) `resources/views/app.blade.php` uses `->role?->name` nullsafe operator.
 6.  **Mail**: Configure `.env` `MAIL_*` settings with Gmail SMTP (App Password required) before testing password reset flows.
 7.  **Storage**: `php artisan storage:link` (Critical for image visibility).
-8.  **Build**: `npm run dev` (Development with HMR on `http://127.0.0.1:5173`) or `npm run build` (Production Vite bundle). Vite dev server is configured with `host: '127.0.0.1'` and `cors: true` in `vite.config.js`.
+8.  **Build**: `npm run dev` (Development with HMR on `http://127.0.0.1:5173`) or `npm run build` (Production Vite bundle). Vite dev server is configured with `host: '127.0.0.1'` and `cors: true` in `vite.config.js`. Stale `public/hot` files are auto-removed on boot by `AppServiceProvider` when the dev server is no longer listening (§8.6), so a dead hot file won't blank the app.
 9.  **Auto Paper Generator — Seeding Test Data**: The generator pulls from the `question_bank` table. Seed questions via the Admin Dashboard (`/admin/dashboard` → Question Bank → Add Question) with grade and subject set. The API endpoint (`/api/question-bank/filter?grade=X&subject=Y`) returns questions with options reshaped from the wide-row format.
 
 ---
-*Last Updated: August 11, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 13, 2026 by ExamCraft AI Assistant*

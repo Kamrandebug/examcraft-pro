@@ -2,6 +2,8 @@
 import { onMounted, watchEffect, watch } from 'vue';
 import { useUiStore } from './stores/uiStore';
 import { useExamStore } from './stores/examStore';
+import { useAutoPaperStore } from './stores/autoPaperStore';
+import { useTypoStore } from './stores/typoStore';
 import { useProjectStore } from './stores/projectStore';
 import { useTheme } from './composables/useTheme';
 import { useTypography } from './composables/useTypography';
@@ -25,6 +27,8 @@ import AutoPaperPreview from './views/AutoPaperPreview.vue';
 
 const uiStore = useUiStore();
 const examStore = useExamStore();
+const autoPaperStore = useAutoPaperStore();
+const typoStore = useTypoStore();
 const projectStore = useProjectStore();
 const { initTheme } = useTheme();
 const { applyTypoToPaper } = useTypography();
@@ -62,12 +66,71 @@ function setupAutoSave() {
     watch(() => examStore.pages, debouncedSave, { deep: true });
 }
 
+// Handle SPA launcher query params (?mode=manual|auto|auto-preview&paper_id=N)
+function initFromLauncher() {
+    const mode = window.initialMode;
+    if (mode && ['manual', 'auto', 'auto-preview'].includes(mode)) {
+        uiStore.setView(mode);
+    }
+
+    if (window.initialPaperId) {
+        loadPaperFromServer(window.initialPaperId);
+    }
+}
+
+async function loadPaperFromServer(paperId) {
+    try {
+        const { data } = await window.axios.get(`/api/user/papers/${paperId}`);
+        const paper = data.paper || {};
+        const pd = data.paper_data || {};
+
+        if (paper.type === 'auto') {
+            autoPaperStore.setPaperMeta({
+                title: pd.paperTitle || paper.title || '',
+                school: pd.schoolName || paper.school_name || '',
+                date: pd.paperDate || '',
+                grade: pd.grade || paper.grade || '',
+                subject: pd.subject || paper.subject || '',
+            });
+            autoPaperStore.setSelectedMcqs(pd.selectedMcqs || []);
+            uiStore.setView('auto-preview');
+        } else {
+            if (pd.pages) examStore.pages = pd.pages;
+            if (pd.paperMeta) examStore.paperMeta = { ...examStore.paperMeta, ...pd.paperMeta };
+            if (pd.styleState) examStore.styleState = { ...examStore.styleState, ...pd.styleState };
+            if (pd.coverFooter) examStore.coverFooter = { ...examStore.coverFooter, ...pd.coverFooter };
+            if (pd.pageFooter) examStore.pageFooter = { ...examStore.pageFooter, ...pd.pageFooter };
+
+            // Restore typography so the designer shows the saved fonts/sizes.
+            if (pd.typoState) {
+                typoStore.typoState = { ...typoStore.typoState, ...pd.typoState };
+                applyTypoToPaper();
+            }
+
+            // Restore global layout overrides (numbering, columns, answer boxes).
+            if (pd.globalOpts) {
+                const g = pd.globalOpts;
+                if (g.qNumberStart !== undefined) examStore.qNumberStart = g.qNumberStart;
+                if (g.globalOptsLayout !== undefined) examStore.globalOptsLayout = g.globalOptsLayout;
+                if (g.showAnswerBoxes !== undefined) examStore.showAnswerBoxes = g.showAnswerBoxes;
+                if (g.showMarks !== undefined) examStore.showMarks = g.showMarks;
+                if (g.twoColumn !== undefined) examStore.twoColumn = g.twoColumn;
+            }
+
+            uiStore.setView('manual');
+        }
+    } catch (err) {
+        console.error('Failed to load paper from server:', err);
+    }
+}
+
 onMounted(() => {
     initTheme();
     applyTypoToPaper();
     loadAllProjects();
     setupKeyboardShortcuts();
     setupAutoSave();
+    initFromLauncher();
 });
 
 watchEffect(() => {
