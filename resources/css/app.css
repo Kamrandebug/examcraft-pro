@@ -1311,13 +1311,29 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
     break-inside: avoid !important;
   }
 
+  /* Options — compact rows in print. */
+  .ap-q-opt,
+  .ap-q-opt--with-img {
+    padding: 3px 0 !important;
+    margin-bottom: 6px !important;
+    min-height: unset !important;
+  }
+
   /* Option images — keep visible and sized for print. */
   .ap-q-opt-img,
   .ap-q-stem-img {
     display: inline-block !important;
     visibility: visible !important;
+    object-fit: contain !important;
+  }
+
+  .ap-q-opt-img {
+    max-height: 75px !important;
+    max-width: 110px !important;
+  }
+
+  .ap-q-stem-img {
     max-height: 80px !important;
     max-width: 100px !important;
-    object-fit: contain !important;
   }
 }

@@ -1,0 +1,414 @@
+/* ============================================================
+   ExamCraft Pro — Dashboard Theme Overrides
+   Academic Authority Design System
+   Applies to: Admin Dashboard (AdminLTE v3.2.0) & User Dashboard
+   ============================================================ */
+
+/* ── Design Tokens ─────────────────────────────────────── */
+:root {
+  --navy:        #1B2A4A;
+  --gold:        #C9A84C;
+  --parchment:   #F7F2E4;
+  --crimson:     #8B1A1A;
+  --card-dark:   #243559;
+  --dark:        #1A1A1A;
+  --muted:       #5A6070;
+  --border:      #DDD8CC;
+  --gold-light:  #d4b35a;
+  --gold-dark:   #b8943e;
+  --footer-dark: #111827;
+  --white:       #FFFFFF;
+}
+
+/* ── SIDEBAR ───────────────────────────────────────────── */
+.main-sidebar,
+.sidebar {
+  background: var(--navy) !important;
+}
+
+.sidebar .nav-link {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.sidebar .nav-link:hover {
+  background: var(--card-dark) !important;
+  color: #fff !important;
+}
+
+.sidebar .nav-link.active {
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+  font-weight: 600 !important;
+}
+
+.sidebar .nav-treeview .nav-link {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.sidebar .nav-treeview .nav-link.active {
+  color: var(--gold) !important;
+}
+
+.brand-link {
+  background: #151f38 !important;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3) !important;
+}
+
+.brand-link .brand-text {
+  color: var(--gold) !important;
+  font-weight: 700 !important;
+}
+
+/* AdminLTE sidebar-dark-primary active override */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+}
+
+/* Sidebar section headers */
+.sidebar .nav-header {
+  color: rgba(201, 168, 76, 0.7) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+/* ── NAVBAR (top bar) ──────────────────────────────────── */
+.main-header.navbar {
+  background: var(--navy) !important;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2) !important;
+}
+
+.navbar-light .navbar-nav .nav-link {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.navbar-light .navbar-nav .nav-link:hover {
+  color: var(--gold) !important;
+}
+
+/* Navbar brand (for user dashboard) */
+.navbar .navbar-brand {
+  color: var(--gold) !important;
+  font-weight: 700 !important;
+}
+
+/* Hamburger / pushmenu icon */
+.main-header .nav-link [class*="fa-"] {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* ── CARDS ─────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+.card-header {
+  background: var(--navy) !important;
+  color: #fff !important;
+  border-bottom: 2px solid var(--gold) !important;
+  font-weight: 600 !important;
+}
+
+.card-title {
+  color: #fff !important;
+}
+
+/* ── CONTENT AREA ──────────────────────────────────────── */
+.content-wrapper {
+  background: var(--parchment) !important;
+}
+
+.content-header h1 {
+  color: var(--navy) !important;
+}
+
+.breadcrumb-item.active {
+  color: var(--muted) !important;
+}
+
+.breadcrumb-item a {
+  color: var(--gold) !important;
+}
+
+.breadcrumb-item a:hover {
+  color: var(--gold-dark) !important;
+}
+
+/* ── BUTTONS ───────────────────────────────────────────── */
+.btn-primary {
+  background: var(--gold) !important;
+  border-color: var(--gold) !important;
+  color: var(--navy) !important;
+  font-weight: 600 !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background: var(--gold-dark) !important;
+  border-color: var(--gold-dark) !important;
+  color: var(--navy) !important;
+}
+
+.btn-danger {
+  background: var(--crimson) !important;
+  border-color: var(--crimson) !important;
+  color: #fff !important;
+}
+
+.btn-danger:hover,
+.btn-danger:focus {
+  background: #6e1515 !important;
+  border-color: #6e1515 !important;
+}
+
+.btn-secondary {
+  background: var(--card-dark) !important;
+  border-color: var(--card-dark) !important;
+  color: #fff !important;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+  background: var(--navy) !important;
+  border-color: var(--navy) !important;
+  color: #fff !important;
+}
+
+/* ── SMALL INFO BOXES & STAT WIDGETS ───────────────────── */
+.info-box {
+  border-radius: 8px !important;
+  border: 1px solid var(--border) !important;
+}
+
+.info-box-icon.bg-info {
+  background: var(--navy) !important;
+}
+
+.info-box-icon.bg-success {
+  background: #1e5c3a !important;
+}
+
+.info-box-icon.bg-warning {
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+}
+
+.info-box-icon.bg-danger {
+  background: var(--crimson) !important;
+}
+
+.small-box.bg-info {
+  background: var(--navy) !important;
+}
+
+.small-box.bg-warning {
+  background: var(--gold) !important;
+}
+
+.small-box.bg-danger {
+  background: var(--crimson) !important;
+}
+
+.small-box > .inner h3,
+.small-box > .inner p {
+  color: #fff !important;
+}
+
+.small-box.bg-warning > .inner h3,
+.small-box.bg-warning > .inner p {
+  color: var(--navy) !important;
+}
+
+/* ── TABLES ────────────────────────────────────────────── */
+.table thead th {
+  background: var(--navy) !important;
+  color: #fff !important;
+  border-bottom: 2px solid var(--gold) !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background: rgba(27, 42, 74, 0.04) !important;
+}
+
+.table td a {
+  color: var(--gold) !important;
+}
+
+.table td a:hover {
+  color: var(--gold-dark) !important;
+}
+
+/* ── BADGES ────────────────────────────────────────────── */
+.badge-primary {
+  background: var(--navy) !important;
+  color: #fff !important;
+}
+
+.badge-warning {
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+}
+
+.badge-danger {
+  background: var(--crimson) !important;
+  color: #fff !important;
+}
+
+/* ── FORMS ─────────────────────────────────────────────── */
+.form-control:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.14) !important;
+}
+
+label {
+  color: var(--navy) !important;
+  font-weight: 500 !important;
+}
+
+/* ── FOOTER ────────────────────────────────────────────── */
+.main-footer {
+  background: var(--navy) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  border-top: 1px solid rgba(201, 168, 76, 0.2) !important;
+}
+
+.main-footer a {
+  color: var(--gold) !important;
+}
+
+.main-footer a:hover {
+  color: var(--gold-light) !important;
+}
+
+/* ── PAGINATION ────────────────────────────────────────── */
+.page-item.active .page-link {
+  background: var(--gold) !important;
+  border-color: var(--gold) !important;
+  color: var(--navy) !important;
+}
+
+.page-link {
+  color: var(--navy) !important;
+}
+
+.page-link:hover {
+  background: var(--parchment) !important;
+  color: var(--gold) !important;
+}
+
+/* ── ALERTS ────────────────────────────────────────────── */
+.alert-success {
+  border-left: 4px solid #1e5c3a !important;
+}
+
+.alert-danger {
+  border-left: 4px solid var(--crimson) !important;
+}
+
+.alert-warning {
+  border-left: 4px solid var(--gold) !important;
+  background: rgba(201, 168, 76, 0.08) !important;
+  color: #92400e !important;
+}
+
+.alert-info {
+  border-left: 4px solid var(--navy) !important;
+}
+
+/* ── USER DASHBOARD — NAVBAR ───────────────────────────── */
+.navbar,
+header.navbar {
+  background: var(--navy) !important;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2) !important;
+}
+
+/* ── USER DASHBOARD — BODY / LAYOUT ────────────────────── */
+body {
+  background: var(--parchment) !important;
+}
+
+h1, h2, h3, h4, h5 {
+  color: var(--navy);
+}
+
+/* ── USER DASHBOARD — PAPER ITEMS ──────────────────────── */
+.paper-item {
+  border-left: 3px solid var(--gold) !important;
+}
+
+/* ── USER DASHBOARD — FOOTER ───────────────────────────── */
+footer,
+.main-footer {
+  background: var(--navy) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  border-top: 1px solid rgba(201, 168, 76, 0.2) !important;
+}
+
+footer a,
+.main-footer a {
+  color: var(--gold) !important;
+}
+
+/* ── USER INITIALS CIRCLE (User Dashboard) ─────────────── */
+.user-initials-circle {
+  background: var(--gold) !important;
+  color: var(--navy) !important;
+}
+
+/* ── USER DASHBOARD — STATUS BADGES ────────────────────── */
+.badge-auto {
+  background: #6f42c1 !important;
+}
+
+.badge-manual {
+  background: #17a2b8 !important;
+}
+
+.badge-draft {
+  background: #6c757d !important;
+}
+
+.badge-published {
+  background: #28a745 !important;
+}
+
+/* ── TOASTR OVERRIDES ──────────────────────────────────── */
+.toast-success {
+  background: #1e5c3a !important;
+}
+
+.toast-error {
+  background: var(--crimson) !important;
+}
+
+/* ── CONTROL SIDEBAR ───────────────────────────────────── */
+.control-sidebar-dark {
+  background: var(--navy) !important;
+}
+
+/* ── MISC ──────────────────────────────────────────────── */
+::selection {
+  background: rgba(201, 168, 76, 0.3);
+  color: var(--navy);
+}
+
+/* Scrollbar theming (Webkit) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--parchment);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

@@ -49,11 +49,11 @@
           </div>
 
           <!-- Row 4: additional materials -->
-          <div class="ap-materials">
-            <div class="ap-materials-label">Additional Materials:</div>
-            <div class="ap-materials-list">
-              <div v-for="(line, i) in materialsLines" :key="i" class="ap-materials-item">{{ line }}</div>
-            </div>
+          <div class="ap-materials-row">
+            <span class="ap-materials-label">Additional Materials:</span>
+            <ul class="ap-materials-list">
+              <li v-for="(m, i) in materialsLines" :key="i">{{ m }}</li>
+            </ul>
           </div>
 
           <!-- Row 5: rule -->
@@ -86,7 +86,7 @@
           <div class="ap-questions">
             <div class="ap-q-item" v-for="(mcq, idx) in autoPaperStore.selectedMcqs" :key="mcq.id">
               <div class="ap-q-stem">
-                <b>{{ idx + 1 }}</b>&nbsp;{{ mcq.stem_text }}
+                <span class="ap-q-number">{{ idx + 1 }}</span><span v-html="cleanText(mcq.stem_text)"></span>
                 <img
                   v-if="mcq.stem_image"
                   :src="mcq.stem_image"
@@ -102,7 +102,7 @@
                   :key="opt.label"
                 >
                   <b class="ap-q-opt-label">{{ opt.label }}</b>
-                  <span class="ap-q-opt-text">{{ opt.text }}</span>
+                  <span class="ap-q-opt-text" v-html="cleanText(opt.text)"></span>
                   <img
                     v-if="opt.image"
                     :src="opt.image"
@@ -139,8 +139,21 @@ const materialsLines = computed(() =>
     .filter((l) => l.length > 0)
 );
 
+function cleanText(html) {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('a').forEach((a) => {
+    a.replaceWith(document.createTextNode(a.textContent));
+  });
+  div.querySelectorAll('[style]').forEach((el) => {
+    el.removeAttribute('style');
+  });
+  return div.innerHTML;
+}
+
 const instructionsHtml = computed(() => {
-  const text = autoPaperStore.instructions || '';
+  const text = cleanText(autoPaperStore.instructions || '');
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -332,10 +345,10 @@ function goHome() {
   border-radius: 2px;
   padding: 20mm;
   font-family: 'Times New Roman', 'Times', 'Liberation Serif', serif;
-  font-size: 11pt;
-  color: #111;
+  font-size: 10pt;
+  color: #000;
   box-sizing: border-box;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 /* ---- Header: Row 1 — logo + org ---- */
@@ -408,30 +421,59 @@ function goHome() {
 }
 
 /* ---- Row 4: additional materials ---- */
-.ap-materials {
-  margin: 10px 0 0 20px;
+.ap-materials-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 8px 0;
+  font-size: 10pt;
 }
 
 .ap-materials-label {
-  font-weight: 700;
+  font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.ap-materials-item {
-  margin-left: 12px;
+.ap-materials-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ap-materials-list li {
+  line-height: 1.6;
+  color: #000;
 }
 
 /* ---- Row 6/7: instructions ---- */
 .ap-instructions-heading {
-  font-size: 11pt;
-  font-weight: 700;
-  text-decoration: underline;
   text-align: center;
-  margin-bottom: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  margin: 12px 0 8px;
+  font-size: 10.5pt;
+  color: #000;
 }
 
 .ap-instructions-body {
   white-space: normal;
-  font-size: 11pt;
+  font-size: 10.5pt;
+}
+
+.ap-instructions-heading,
+.ap-instructions-body,
+.ap-instructions-body * {
+  color: #000 !important;
+  text-decoration: none !important;
+}
+
+.ap-instructions-heading strong,
+.ap-instructions-heading b,
+.ap-instructions-body strong,
+.ap-instructions-body b {
+  color: #000 !important;
+  font-weight: bold !important;
 }
 
 /* ---- Row 9: footer ---- */
@@ -472,70 +514,97 @@ function goHome() {
 }
 
 .ap-q-item {
+  /* flex gap on .ap-questions already spaces items; kill the redundant margin */
+  margin-bottom: 0 !important;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #000;
   page-break-inside: avoid;
 }
 
 .ap-q-stem {
-  font-size: var(--paper-q-font-size, 11pt);
+  font-size: var(--paper-q-font-size, 10pt);
   font-weight: var(--paper-q-font-weight, 400);
   margin-bottom: 4px;
   line-height: var(--paper-line-height, 1.5);
+}
+
+.ap-q-number {
+  font-weight: bold;
+  margin-right: 4px;
 }
 
 .ap-q-stem-img {
   max-width: 200px;
   max-height: 150px;
   display: block;
-  margin: 8px 0 12px 0;
+  margin: 4px 0;
   border: 1px solid #ddd;
   filter: none;
 }
 
 .ap-q-options {
-  margin-left: 20px;
+  margin-top: 8px !important;
+  padding: 0 !important;
 }
 
-/* Text-only option: keep the original inline layout. */
-.ap-q-opt {
-  font-size: var(--paper-opt-font-size, 10pt);
-  margin-bottom: 1px;
-  line-height: 1.6;
-}
-
-/* Option with an image: [label] [text] [thumbnail] on one flex row,
-   constrained to the full width of the options container so the image
-   never escapes the white paper boundary. */
+/* Option row — [label] [text] [image] on one flex row. Row height is driven
+   by content only (the image height sets it), no artificial inflation. */
+.ap-q-opt,
 .ap-q-opt--with-img {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
+  display: flex !important;
+  align-items: center !important;   /* vertically center label+text with image */
+  gap: 10px !important;
+  padding: 3px 0 !important;        /* minimal top/bottom padding only */
+  margin: 0 0 6px 0 !important;     /* 6px gap between option rows */
+  min-height: unset !important;
+  height: auto !important;
 }
 
 .ap-q-opt-label {
-  white-space: nowrap;
+  font-weight: bold !important;
+  min-width: 18px !important;
+  flex-shrink: 0 !important;
+  align-self: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .ap-q-opt-text {
-  display: inline;
-}
-
-.ap-q-opt--with-img .ap-q-opt-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 !important;
+  line-height: 1.5 !important;
+  align-self: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .ap-q-opt-img {
-  flex-shrink: 0;
-  max-height: 60px;
-  max-width: 120px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  border: 1px solid #ddd;
-  filter: none;
+  max-height: 75px !important;    /* readable size — was wrongly reduced to 32px */
+  max-width: 110px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+/* Force plain black text on all question and option content. */
+.ap-q-stem,
+.ap-q-stem * {
+  color: #000 !important;
+  text-decoration: none !important;
+  font-style: normal !important;
+}
+
+.ap-q-opt,
+.ap-q-opt * {
+  color: #000 !important;
+  text-decoration: none !important;
 }
 </style>

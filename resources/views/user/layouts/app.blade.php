@@ -15,6 +15,9 @@
   <link rel="stylesheet" href="{{ asset('adminlte/dist/css/adminlte.min2167.css') }}">
   <!-- Toastr -->
   <link rel="stylesheet" href="{{ asset('adminlte/plugins/toastr/toastr.min.css') }}">
+  <!-- ExamCraft Theme Overrides -->
+  <link rel="stylesheet" href="{{ asset('css/examcraft-theme.css') }}">
+  @stack('styles')
   @yield('styles')
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">

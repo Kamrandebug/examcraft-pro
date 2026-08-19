@@ -102,7 +102,7 @@ examcraft-pro/
 │   └── storage/                              → Symlink to storage/app/public/ (images)
 ├── resources/
 │   ├── css/
-│   │   └── app.css                           → Theme system (1,700+ lines) + Tailwind directives. 4 themes (Day/Afternoon/Night/Late Night) with CSS custom properties, paper typography variables, and all component styles (topbar, panels, canvas, blocks, rulers, modals, toasts, etc.)
+│   │   └── app.css                           → Theme system (1,700+ lines) + Tailwind directives. 4 themes (Day/Afternoon/Night/Late Night) with CSS custom properties, paper typography variables, all component styles (topbar, panels, canvas, blocks, rulers, modals, toasts, etc.), and the A4 @page + @media print rules for auto-paper export
 │   ├── js/
 │   │   ├── app.js                            → Vue app entry point; initializes Pinia
 │   │   ├── App.vue                           → Root component; handles layout & auto-save
@@ -111,7 +111,7 @@ examcraft-pro/
 │   │   │   ├── uiStore.js                     → Zoom, panel widths, active tab, theme, toasts, currentView (SPA view routing)
 │   │   │   ├── typoStore.js                   → Typography settings + 6 Cambridge presets
 │   │   │   ├── projectStore.js                → IndexedDB CRUD, import/export
-│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logo, selectedMcqs, totalMarks)
+│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logo, selectedMcqs, totalMarks); auto-persists wizard state to localStorage so a refresh keeps the selection
 │   │   ├── composables/                      → Reusable logic (useZoom, useTypography, etc.)
 │   │   ├── components/                       → UI components (Canvas, Panels, Blocks)
 │   │   └── views/                            → SPA top-level views (HomeScreen, AutoPaperGenerator, AutoPaperPreview)
@@ -166,7 +166,7 @@ The SPA uses a modular "Block" system where each part of an exam paper is a dist
 6.  **Divider**: Horizontal separators with customizable styles (solid/dashed/dotted).
 
 ---
-## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16, 2026)
+## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16–17, 2026)
 
 A wizard-based paper generation flow that sources MCQs from the server-side question bank and produces a Cambridge-styled MCQ paper.
 
@@ -191,8 +191,8 @@ Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
 | Component | View ID | Purpose |
 |-----------|---------|---------|
 | `HomeScreen.vue` | `home` | Two cards: "Create Manual Paper" (→ `manual`) and "Auto Paper Generator" (→ `auto`). Non-admin users also see a "Back to My Dashboard" link. |
-| `AutoPaperGenerator.vue` | `auto` | Full paper settings form — identity (title, paper code, session, duration), institution (school, date), setup (grade → subject cascading dropdowns from a hardcoded mapping), additional materials, editable instructions, and an optional logo upload. "Load MCQs" fetches `/api/question-bank/filter`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores the selection and navigates to `auto-preview`. Also supports **editing** an existing paper via `?paper_id=N` (see below). |
-| `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm) rendering the Cambridge header (logo + school, subject/code/session/duration, additional materials, bolded-keyword instructions, footer note) and Section A questions with A/B/C/D options and images. Action bar: "Edit Selection" (→ `auto`), **"Save to My Papers"** (POST/PUT `/api/user/papers`), "Print Paper" (`window.print()`), "Home". Print CSS hides the action bar. |
+| `AutoPaperGenerator.vue` | `auto` | Full paper settings form — identity (title, paper code, session, duration), institution (school, date), setup (grade → subject cascading dropdowns from a hardcoded mapping), additional materials, editable instructions, and an optional logo upload. "Load MCQs" fetches `/api/question-bank/filter`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores the selection and navigates to `auto-preview`. Also supports **editing** an existing paper via `?paper_id=N` (see below). Form fields hydrate from the persisted store and re-check the previous MCQ selection after a refresh; logo uploads are downscaled to a max 300px JPEG before saving. |
+| `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm) rendering the Cambridge header (logo + school, subject/code/session/duration, additional materials, bolded-keyword instructions, footer note) and Section A questions with A/B/C/D options and images. All question stems and option text are rendered as sanitized HTML via `cleanText()` (strips `<a>` tags to plain text, removes inline `style` attributes) to prevent theme bleed-through and link artifacts. Option rows put the bold A–D label left, text center, and a readable image (≤75px × 110px) right; row height is content-driven (3px padding, 6px gaps). Forced `color: #000 !important` on stems and options ensures print fidelity. Action bar: "Edit Selection" (→ `auto`), **"Save to My Papers"** (POST/PUT `/api/user/papers`), "Print Paper" (`window.print()`), "Home". Print output is driven by the global A4 `@media print` rules in `app.css`. |
 
 ### Auto-paper Persistence (server-side "My Papers")
 - Both the **manual** editor (TopBar "Save to My Papers" cloud button) and the **auto** preview ("Save to My Papers") persist the paper to the server via `POST /api/user/papers` (create) or `PUT /api/user/papers/{id}` (update) using `window.axios`.
@@ -209,6 +209,34 @@ Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
 ### UI Updates
 - **`TopBar.vue`**: Added "Back to Home" button (left-arrow, first item) — `goHome()` navigates admins to the SPA `home` view and non-admins to `/user/dashboard`. Added the "Save to My Papers" cloud-upload button wired to the `/api/user/papers` endpoint.
 - **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperGenerator`, `AutoPaperPreview`.
+
+### Auto Paper Preview, Print & Wizard Persistence (August 17, 2026)
+
+Final polish pass on the auto-paper flow — refresh-proof persistence, readable option images, and a true A4 print/PDF export.
+
+#### Wizard state survives page refreshes
+- **`autoPaperStore.js`** now persists the entire wizard state (`paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoDataUrl`, `selectedMcqs`) to `localStorage` under the key `examcraft.autoPaper`. A deep `watch` writes on every change and the store rehydrates from it on load, so a refresh keeps the wizard exactly as the user left it.
+- On refresh mid-wizard, `AutoPaperGenerator.vue` re-fetches the matching MCQs (`/api/question-bank/filter`) and re-checks the previously selected questions instead of starting from scratch.
+
+#### Logo uploads are downscaled before saving
+- New `resizeLogo()` in the generator resizes an uploaded logo to a max of 300px on the longest edge and re-encodes it as a JPEG data URL (PNG fallback).
+- `AutoPaperPreview.vue` applies the same `shrinkLogoDataUrl()` transform on save, so previously saved full-resolution PNG logos are compressed on their next save too. This stops `paper_data` from ballooning past MySQL's `max_allowed_packet` — the cause of intermittent 500 errors when saving.
+
+#### Print/PDF export overhaul
+- Print styles moved out of the component into a global `@media print` block at the end of `resources/css/app.css`, with an A4 `@page` setup. The `#app` wrapper previously carried `overflow: hidden; height: 100vh` (needed for the canvas editor) which clipped the print-out to roughly one screen; the print rules reset `html/body/#app`, hide all SPA chrome (topbar, action bar, nav, sidebar), and keep the paper sheet at 210mm × 297mm with proper margins.
+- Questions never split mid-question in print (`page-break-inside: avoid` / `break-inside: avoid` on `.ap-q-item`).
+- Print-specific option row rules (`.ap-q-opt` / `.ap-q-opt--with-img`) enforce compact padding (3px 0) and 6px gaps between rows. Option images (`.ap-q-opt-img`) are capped at 75px × 110px with `object-fit: contain` and forced `display: inline-block; visibility: visible`. Stem images (`.ap-q-stem-img`) are capped at 80px × 100px with `object-fit: contain`.
+
+#### Preview paper layout (Cambridge conventions)
+- The sheet is a true A4 page (210mm × 297mm) at 10pt serif type. The header stack: logo + school name (row 1), divider rule, subject/paper code/session/duration right-aligned (row 3), "Additional Materials:" label + list (row 4), "READ THESE INSTRUCTIONS FIRST" centered heading (row 6), instructions body with bolded key phrases (row 7), divider, and a footer note that now reads "Answer all N questions." — the fabricated "This document consists of N printed pages" counter was removed.
+- Question stems and option text render as sanitized HTML via `cleanText()` (links replaced with plain text, inline `style` attributes stripped). This function is applied to **all three** content areas — instructions, question stems, and option text — ensuring no theme bleed-through, no clickable links, and no rogue inline styles in the printed output. The instructions auto-replace the hardcoded word "forty" with the actual number of selected questions.
+- **Option rows** follow the Cambridge image-option layout: bold A–D label on the left (fixed 18px column), option text in the middle filling the remaining space, and the image on the right capped at 75px × 110px so graphs, diagrams and circuits stay readable. Row height is driven by content only (the image sets it), with 3px top/bottom padding and 6px gaps between rows — no artificial inflation. Both `.ap-q-opt` and `.ap-q-opt--with-img` share a unified flex layout with `!important` overrides to prevent theme CSS from inflating rows.
+- **Print fidelity**: forced `color: #000 !important` and `text-decoration: none !important` on `.ap-q-stem`, `.ap-q-opt`, and all their descendants ensures no dark-theme colors or underlines leak into the printed page. The instructions heading uses `text-decoration: none` (not `underline`) per Cambridge convention.
+- **Materials section**: changed from `<div>`-based layout to semantic `<span>/<ul>/<li>` markup (`ap-materials-row` / `ap-materials-list`) with flex alignment and `list-style: none`.
+- **Question numbering**: changed from `<b>{{ idx + 1 }}</b>&nbsp;` to `<span class="ap-q-number">{{ idx + 1 }}</span>` with a dedicated `.ap-q-number` class (`font-weight: bold; margin-right: 4px`) for consistent spacing.
+
+#### Home screen
+- **`HomeScreen.vue`** — the "Back to My Dashboard" link now uses a `computed` `isUser` flag instead of referencing `window.authUser` directly in the template (which never resolves in Vue's render scope), so regular users reliably see the dashboard link.
 
 ---
 
@@ -524,4 +552,4 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 10.  **User Papers (My Papers)**: Non-admin users manage their saved papers at `/user/dashboard` → "My Papers". The SPA persists papers via `/api/user/papers` (session auth + CSRF from `bootstrap.js`); the Blade dashboard reads/writes them via the `user.papers.*` routes.
 
 ---
-*Last Updated: August 16, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 19, 2026 by ExamCraft AI Assistant*
