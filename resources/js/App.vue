@@ -22,7 +22,7 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal.vue';
 import PreviewOverlay from './components/modals/PreviewOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
 import HomeScreen from './views/HomeScreen.vue';
-import AutoPaperGenerator from './views/AutoPaperGenerator.vue';
+import AutoPaperWizard from './components/AutoPaperWizard.vue';
 import AutoPaperPreview from './views/AutoPaperPreview.vue';
 
 const uiStore = useUiStore();
@@ -85,21 +85,9 @@ async function loadPaperFromServer(paperId) {
         const pd = data.paper_data || {};
 
         if (paper.type === 'auto') {
-            autoPaperStore.setPaperMeta({
-                title: pd.paperTitle || paper.title || '',
-                school: pd.schoolName || paper.school_name || '',
-                date: pd.paperDate || '',
-                grade: pd.grade || paper.grade || '',
-                subject: pd.subject || paper.subject || '',
-            });
-            autoPaperStore.setSelectedMcqs(pd.selectedMcqs || []);
-            uiStore.setView('auto-preview');
+            await autoPaperStore.loadPaperForEdit(paperId);
         } else {
-            if (pd.pages) examStore.pages = pd.pages;
-            if (pd.paperMeta) examStore.paperMeta = { ...examStore.paperMeta, ...pd.paperMeta };
-            if (pd.styleState) examStore.styleState = { ...examStore.styleState, ...pd.styleState };
-            if (pd.coverFooter) examStore.coverFooter = { ...examStore.coverFooter, ...pd.coverFooter };
-            if (pd.pageFooter) examStore.pageFooter = { ...examStore.pageFooter, ...pd.pageFooter };
+            examStore.loadFromSnapshot(pd);
 
             // Restore typography so the designer shows the saved fonts/sizes.
             if (pd.typoState) {
@@ -107,16 +95,8 @@ async function loadPaperFromServer(paperId) {
                 applyTypoToPaper();
             }
 
-            // Restore global layout overrides (numbering, columns, answer boxes).
-            if (pd.globalOpts) {
-                const g = pd.globalOpts;
-                if (g.qNumberStart !== undefined) examStore.qNumberStart = g.qNumberStart;
-                if (g.globalOptsLayout !== undefined) examStore.globalOptsLayout = g.globalOptsLayout;
-                if (g.showAnswerBoxes !== undefined) examStore.showAnswerBoxes = g.showAnswerBoxes;
-                if (g.showMarks !== undefined) examStore.showMarks = g.showMarks;
-                if (g.twoColumn !== undefined) examStore.twoColumn = g.twoColumn;
-            }
-
+            examStore.editPaperId = paper.id;
+            examStore.isEditMode = true;
             uiStore.setView('manual');
         }
     } catch (err) {
@@ -124,17 +104,64 @@ async function loadPaperFromServer(paperId) {
     }
 }
 
-onMounted(() => {
+async function loadManualPaperForEdit(id, examStore) {
+    try {
+        const res = await window.axios.get(`/api/user/papers/${id}`);
+        const paper = res.data.paper ?? res.data;
+        const pd = (typeof paper.paper_data === 'string')
+            ? JSON.parse(paper.paper_data)
+            : (paper.paper_data ?? {});
+
+        if (pd && Object.keys(pd).length > 0) {
+            examStore.loadFromSnapshot(pd);
+            // Restore typography
+            if (pd.typoState) {
+                typoStore.typoState = { ...typoStore.typoState, ...pd.typoState };
+                applyTypoToPaper();
+            }
+        }
+
+        examStore.editPaperId = id;
+        examStore.isEditMode = true;
+    } catch (err) {
+        console.error('loadManualPaperForEdit error:', err);
+    }
+}
+
+onMounted(async () => {
     initTheme();
     applyTypoToPaper();
     loadAllProjects();
     setupKeyboardShortcuts();
     setupAutoSave();
-    initFromLauncher();
+
+    const params = new URLSearchParams(window.location.search);
+    const paperId = params.get('paper_id');
+
+    if (paperId) {
+        if (window.location.pathname.includes('/user/auto')) {
+            // Set loading BEFORE showing the view
+            autoPaperStore.editLoading = true;
+            autoPaperStore.isEditMode = false;
+
+            uiStore.setView('auto');
+            await autoPaperStore.loadPaperForEdit(Number(paperId));
+        } else if (window.location.pathname.includes('/user/manual')) {
+            uiStore.setView('manual');
+            await loadManualPaperForEdit(Number(paperId), examStore);
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+    } else {
+        initFromLauncher();
+    }
 });
 
 watchEffect(() => {
     document.documentElement.setAttribute('data-theme', uiStore.theme);
+});
+
+watchEffect(() => {
+  document.body.classList.toggle('view-auto', uiStore.currentView === 'auto');
 });
 </script>
 
@@ -173,7 +200,7 @@ watchEffect(() => {
     </template>
 
     <HomeScreen v-else-if="uiStore.currentView === 'home'" />
-    <AutoPaperGenerator v-else-if="uiStore.currentView === 'auto'" />
+    <AutoPaperWizard v-else-if="uiStore.currentView === 'auto'" />
     <AutoPaperPreview v-else-if="uiStore.currentView === 'auto-preview'" />
   </div>
 </template>

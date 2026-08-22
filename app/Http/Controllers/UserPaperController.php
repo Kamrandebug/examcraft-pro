@@ -46,13 +46,6 @@ class UserPaperController extends Controller
         return view('user.papers.show', compact('paper'));
     }
 
-    public function edit(int $id)
-    {
-        $paper = $this->authorizedPaper($id);
-
-        return view('user.papers.edit', compact('paper'));
-    }
-
     public function update(Request $request, int $id)
     {
         $paper = $this->authorizedPaper($id);

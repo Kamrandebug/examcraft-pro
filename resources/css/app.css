@@ -218,6 +218,25 @@ body {
   height: 100vh;
 }
 
+/* -- Auto Paper Wizard Layout Overrides -- */
+body.view-auto {
+  overflow-y: auto !important;
+  height: auto !important;
+  min-height: 100vh;
+}
+
+body.view-auto #app {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+  display: block !important;
+}
+
+.auto-step-card, .step-card {
+  height: auto !important;
+  overflow: visible !important;
+}
+
 /* -- Topbar -- */
 #topbar {
   display: flex;

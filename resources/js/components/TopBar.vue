@@ -92,8 +92,8 @@
     </button>
 
     <!-- Save to My Papers (server) -->
-    <button class="tb-icon green" data-tip="Save to My Papers (server)" @click="saveManualPaper" :disabled="isSavingManual">
-      <i class="fa" :class="isSavingManual ? 'fa-spinner fa-spin' : (manualPaperId ? 'fa-cloud-check' : 'fa-cloud-upload-alt')"></i>
+    <button class="tb-icon green" :data-tip="examStore.isEditMode ? 'Update Paper' : 'Save to My Papers (server)'" @click="saveManualPaper" :disabled="isSavingManual">
+      <i class="fa" :class="isSavingManual ? 'fa-spinner fa-spin' : (examStore.editPaperId ? 'fa-cloud-check' : 'fa-cloud-upload-alt')"></i>
     </button>
 
     <div class="topbar-sep"></div>
@@ -146,7 +146,6 @@ const importInput = ref(null);
 const userDropdownRef = ref(null);
 const showUserDropdown = ref(false);
 const isSavingManual = ref(false);
-const manualPaperId = ref(window.initialPaperId || null);
 
 const userName = window.authUser?.name || 'User';
 const userEmail = window.authUser?.email || '';
@@ -216,21 +215,10 @@ async function saveManualPaper() {
     isSavingManual.value = true;
     try {
         const paperMeta = examStore.paperMeta || {};
-        const paperData = {
-            pages: JSON.parse(JSON.stringify(examStore.pages)),
-            paperMeta: { ...paperMeta },
-            typoState: { ...(typoStore.typoState || {}) },
-            styleState: { ...(examStore.styleState || {}) },
-            globalOpts: {
-                qNumberStart: examStore.qNumberStart,
-                globalOptsLayout: examStore.globalOptsLayout,
-                showAnswerBoxes: examStore.showAnswerBoxes,
-                showMarks: examStore.showMarks,
-                twoColumn: examStore.twoColumn,
-            },
-            coverFooter: { ...(examStore.coverFooter || {}) },
-            pageFooter: { ...(examStore.pageFooter || {}) },
-        };
+        const paperData = examStore.getSnapshot();
+
+        // Include typography state in snapshot
+        paperData.typoState = { ...(typoStore.typoState || {}) };
 
         const payload = {
             title: paperMeta.title || 'Untitled Paper',
@@ -242,14 +230,15 @@ async function saveManualPaper() {
             paper_data: paperData,
         };
 
-        if (manualPaperId.value) {
-            await window.axios.put(`/api/user/papers/${manualPaperId.value}`, payload);
+        if (examStore.editPaperId) {
+            await window.axios.put(`/api/user/papers/${examStore.editPaperId}`, payload);
+            showToast('Paper updated successfully!', 'success');
         } else {
             const { data } = await window.axios.post('/api/user/papers', payload);
-            manualPaperId.value = data.paper.id;
+            examStore.editPaperId = data.paper.id;
+            examStore.isEditMode = true;
+            showToast('Paper saved to your account!', 'success');
         }
-
-        showToast('Paper saved to your account!', 'success');
     } catch (err) {
         console.error('Save manual paper failed:', err);
         showToast('Failed to save paper. Please try again.', 'error');

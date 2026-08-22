@@ -121,9 +121,15 @@
         <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
     </a>
     <div>
-        <a href="{{ $paper->type === 'manual' ? route('user.papers.export', $paper->id) : route('user.papers.edit', $paper->id) }}" class="btn btn-warning mr-1">
-            <i class="fas fa-edit mr-1"></i> Edit
-        </a>
+        @if($paper->type === 'auto')
+            <a href="{{ url('/user/auto') }}?paper_id={{ $paper->id }}" class="btn btn-warning mr-1">
+                <i class="fas fa-edit mr-1"></i> Edit
+            </a>
+        @else
+            <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning mr-1">
+                <i class="fas fa-edit mr-1"></i> Edit
+            </a>
+        @endif
         <button type="button" class="btn btn-success" onclick="window.print()">
             <i class="fas fa-print mr-1"></i> Print
         </button>
@@ -249,7 +255,7 @@
                     <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-success btn-block mb-2">
                         <i class="fas fa-print mr-2"></i>Print / Export
                     </a>
-                    <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-warning btn-block mb-2">
+                    <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-block mb-2">
                         <i class="fas fa-edit mr-2"></i>Edit in Designer
                     </a>
                     <button type="button" class="btn btn-danger btn-block delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('user.papers.destroy', $paper->id) }}">

@@ -111,10 +111,10 @@ examcraft-pro/
 │   │   │   ├── uiStore.js                     → Zoom, panel widths, active tab, theme, toasts, currentView (SPA view routing)
 │   │   │   ├── typoStore.js                   → Typography settings + 6 Cambridge presets
 │   │   │   ├── projectStore.js                → IndexedDB CRUD, import/export
-│   │   │   └── autoPaperStore.js              → Auto Paper Generator wizard state (paperTitle, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logo, selectedMcqs, totalMarks); auto-persists wizard state to localStorage so a refresh keeps the selection
+│   │   │   └── autoPaperStore.js              → Auto Paper Generator state (paperTitle, schoolName, paperDate, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logoDataUrl, selectedMcqs, totalMarks) + multi-step wizard state (currentStep, mcqList, mcqLoading, mcqError, selectedMcqIds, isStep1Valid, selectedMcqCount); auto-persists wizard state to localStorage so a refresh keeps the selection
 │   │   ├── composables/                      → Reusable logic (useZoom, useTypography, etc.)
-│   │   ├── components/                       → UI components (Canvas, Panels, Blocks)
-│   │   └── views/                            → SPA top-level views (HomeScreen, AutoPaperGenerator, AutoPaperPreview)
+│   │   ├── components/                       → UI components (Canvas, Panels, Blocks) + AutoPaperWizard.vue and the auto/ step components (AutoStepper, AutoStepOne/Two/Three)
+│   │   └── views/                            → SPA top-level views (HomeScreen, AutoFormLegacy, AutoPaperPreview)
 │   └── views/
 │       ├── admin/                            → Blade templates for Admin Dashboard
 │       │   ├── users/                        → User management views (index, create, edit, show)
@@ -166,14 +166,14 @@ The SPA uses a modular "Block" system where each part of an exam paper is a dist
 6.  **Divider**: Horizontal separators with customizable styles (solid/dashed/dotted).
 
 ---
-## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16–17, 2026)
+## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16–17, 2026; refactored August 19, 2026)
 
 A wizard-based paper generation flow that sources MCQs from the server-side question bank and produces a Cambridge-styled MCQ paper.
 
 ### View Flow
 ```
 Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
-                       └→ "Auto Paper" (SPA launcher) → AutoPaperGenerator
+                       └→ "Auto Paper" (SPA launcher) → AutoPaperWizard (3-step)
                             → AutoPaperPreview → Save / Print
 ```
 
@@ -185,20 +185,22 @@ Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
 
 ### Frontend Stores
 - **`uiStore.js`** — `currentView: 'home'` state + `setView(view)` action (drives all view switching in App.vue).
-- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoFile`, `logoDataUrl`, `selectedMcqs`. Getter: `totalMarks` (question count). Actions: `setPaperMeta()`, `setLogo()`, `setSelectedMcqs()`, `reset()`. Ships `DEFAULT_INSTRUCTIONS` and `DEFAULT_ADDITIONAL_MATERIALS` constants for the Cambridge answer-sheet boilerplate.
+- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoFile`, `logoDataUrl`, `selectedMcqs`. Getter: `totalMarks` (question count). Actions: `setPaperMeta()`, `setLogo()`, `setSelectedMcqs()`, `reset()`. Ships `DEFAULT_INSTRUCTIONS` and `DEFAULT_ADDITIONAL_MATERIALS` constants for the Cambridge answer-sheet boilerplate. **Multi-step wizard additions** (§4b): state `currentStep`, `mcqList`, `mcqLoading`, `mcqError`, `selectedMcqIds`; computed `isStep1Valid`/`selectedMcqCount`; actions `nextStep`/`prevStep`/`goToStep`/`loadMcqs`/`toggleMcq`/`selectAllMcqs`/`clearMcqSelection`.
 
 ### View Components (`resources/js/views/`)
 | Component | View ID | Purpose |
 |-----------|---------|---------|
 | `HomeScreen.vue` | `home` | Two cards: "Create Manual Paper" (→ `manual`) and "Auto Paper Generator" (→ `auto`). Non-admin users also see a "Back to My Dashboard" link. |
-| `AutoPaperGenerator.vue` | `auto` | Full paper settings form — identity (title, paper code, session, duration), institution (school, date), setup (grade → subject cascading dropdowns from a hardcoded mapping), additional materials, editable instructions, and an optional logo upload. "Load MCQs" fetches `/api/question-bank/filter`. Checkbox MCQ list with select-all/deselect-all. "Generate Paper" stores the selection and navigates to `auto-preview`. Also supports **editing** an existing paper via `?paper_id=N` (see below). Form fields hydrate from the persisted store and re-check the previous MCQ selection after a refresh; logo uploads are downscaled to a max 300px JPEG before saving. |
+| `AutoPaperWizard.vue` (`components/`) | `auto` | The multi-step generator shell (§4b) — a header, the `AutoStepper` progress indicator, a `Transition`-faded step body, and a Back/Next navigation bar. Step 1 (`AutoStepOne`) validates via `isStep1Valid` and its exposed `validate()` method before advancing. |
 | `AutoPaperPreview.vue` | `auto-preview` | Read-only A4 paper sheet (210mm×297mm) rendering the Cambridge header (logo + school, subject/code/session/duration, additional materials, bolded-keyword instructions, footer note) and Section A questions with A/B/C/D options and images. All question stems and option text are rendered as sanitized HTML via `cleanText()` (strips `<a>` tags to plain text, removes inline `style` attributes) to prevent theme bleed-through and link artifacts. Option rows put the bold A–D label left, text center, and a readable image (≤75px × 110px) right; row height is content-driven (3px padding, 6px gaps). Forced `color: #000 !important` on stems and options ensures print fidelity. Action bar: "Edit Selection" (→ `auto`), **"Save to My Papers"** (POST/PUT `/api/user/papers`), "Print Paper" (`window.print()`), "Home". Print output is driven by the global A4 `@media print` rules in `app.css`. |
+
+The pre-refactor single-form view is retained as **`AutoFormLegacy.vue`** (a `views/` file, no longer routed) for rollback — it still holds the `?paper_id=N` edit-hydration logic (`loadPaperForEdit()`) and the full `resizeLogo()` downscaling implementation that the wizard components reuse.
 
 ### Auto-paper Persistence (server-side "My Papers")
 - Both the **manual** editor (TopBar "Save to My Papers" cloud button) and the **auto** preview ("Save to My Papers") persist the paper to the server via `POST /api/user/papers` (create) or `PUT /api/user/papers/{id}` (update) using `window.axios`.
 - The manual paper payload bundles the full designer state (`pages`, `paperMeta`, `typoState`, `styleState`, `globalOpts`, `coverFooter`, `pageFooter`) into the `paper_data` JSON. The auto paper payload stores its wizard state (`paperTitle`, `schoolName`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoDataUrl`, `selectedMcqs`).
 - After the first save, the returned paper `id` is retained (in `manualPaperId` / `savedPaperId`) so subsequent saves **update** rather than duplicate.
-- **Editing a saved paper**: the `/user/papers/{id}/edit` route renders `AutoPaperGenerator.vue` with `?paper_id=N`; `loadPaperForEdit()` fetches `/api/user/papers/{id}`, mirrors the `paper_data` into the store + local form refs, re-selects grade/subject, and re-loads the matching MCQs with prior selections restored. Manual papers instead reopen the SPA in `manual` mode via `UserPaperController::export()`.
+- **Editing a saved paper**: the `/user/papers/{id}/edit` route hydrates the SPA for a paper by `id` — this used to render `AutoPaperGenerator.vue` with `?paper_id=N` (whose `loadPaperForEdit()` fetched `/api/user/papers/{id}`, mirrored the `paper_data` into the store + local form refs, re-selected grade/subject, and re-loaded the matching MCQs with prior selections restored). Manual papers instead reopen the SPA in `manual` mode via `UserPaperController::export()`.
 
 ### SPA Launchers & Role-Aware Entry
 - The root `/` route is now **role-aware**: guests → `landing`, admins → `admin.dashboard`, regular users → `user.dashboard`.
@@ -208,7 +210,7 @@ Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
 
 ### UI Updates
 - **`TopBar.vue`**: Added "Back to Home" button (left-arrow, first item) — `goHome()` navigates admins to the SPA `home` view and non-admins to `/user/dashboard`. Added the "Save to My Papers" cloud-upload button wired to the `/api/user/papers` endpoint.
-- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperGenerator`, `AutoPaperPreview`.
+- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperWizard`, `AutoPaperPreview`. The `auto` view now mounts `AutoPaperWizard` (the multi-step generator) instead of the original `AutoPaperGenerator`.
 
 ### Auto Paper Preview, Print & Wizard Persistence (August 17, 2026)
 
@@ -216,7 +218,7 @@ Final polish pass on the auto-paper flow — refresh-proof persistence, readable
 
 #### Wizard state survives page refreshes
 - **`autoPaperStore.js`** now persists the entire wizard state (`paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoDataUrl`, `selectedMcqs`) to `localStorage` under the key `examcraft.autoPaper`. A deep `watch` writes on every change and the store rehydrates from it on load, so a refresh keeps the wizard exactly as the user left it.
-- On refresh mid-wizard, `AutoPaperGenerator.vue` re-fetches the matching MCQs (`/api/question-bank/filter`) and re-checks the previously selected questions instead of starting from scratch.
+- On refresh mid-wizard, the wizard re-fetches the matching MCQs (`/api/question-bank/filter`) and re-checks the previously selected questions instead of starting from scratch.
 
 #### Logo uploads are downscaled before saving
 - New `resizeLogo()` in the generator resizes an uploaded logo to a max of 300px on the longest edge and re-encodes it as a JPEG data URL (PNG fallback).
@@ -237,6 +239,35 @@ Final polish pass on the auto-paper flow — refresh-proof persistence, readable
 
 #### Home screen
 - **`HomeScreen.vue`** — the "Back to My Dashboard" link now uses a `computed` `isUser` flag instead of referencing `window.authUser` directly in the template (which never resolves in Vue's render scope), so regular users reliably see the dashboard link.
+
+---
+
+## 4b. Multi-Step Auto Paper Wizard (August 19, 2026)
+
+The single-page `AutoPaperGenerator.vue` (830 lines, a flat form + MCQ list on one screen) was decomposed into a **3-step wizard** driven by Pinia state, while the original view was retained as `AutoFormLegacy.vue` for rollback.
+
+### Component breakdown
+
+| Component | Path | Responsibility |
+|-----------|------|----------------|
+| `AutoPaperWizard.vue` | `components/` | Wizard shell — header, stepper, step `<Transition>` switcher, and Back/Next nav. Holds the step-1 validation gate (`isStep1Valid` + `stepOneRef.validate()`). |
+| `AutoStepper.vue` | `components/auto/` | Visual 3-step progress indicator (`Paper Info` → `Settings` → `Load MCQs`) with completed/active/upcoming states, connector lines, and click-to-jump-back on completed steps (emits `go-to-step`). Responsive vertical layout ≤576px. |
+| `AutoStepOne.vue` | `components/auto/` | **Paper Info** — paper identity (title, code, session, duration), institution (school, date), and setup (grade → subject cascading dropdowns). Grade/subject are required (marked `*`); `defineExpose({ validate })` flags missing fields with inline error text. Grade/subject mapping is a hardcoded `gradeSubjects` object (O Level, A Level, 8th–10th Grade). |
+| `AutoStepTwo.vue` | `components/auto/` | **Settings** — additional materials (textarea), instructions (read-only preview + toggle edit), and optional logo upload (with the 300px JPEG `resizeLogo()` downscale). |
+| `AutoStepThree.vue` | `components/auto/` | **Load MCQs** — grade/subject summary, "Load MCQs" button, error/empty states, and the checkbox MCQ list (select-all/clear, correct-answer badge, per-question image/option rendering). The sticky bottom bar's "Generate Paper" maps `selectedMcqIds` → MCQ objects via `store.setSelectedMcqs()` and navigates to `auto-preview`. |
+
+### Store changes (`autoPaperStore.js`)
+- **New state**: `currentStep` (1–3), `mcqList`, `mcqLoading`, `mcqError`, `selectedMcqIds`.
+- **New computed**: `isStep1Valid` (grade + subject both present), `selectedMcqCount` (length of `selectedMcqIds`).
+- **New actions**: `nextStep()`/`prevStep()`/`goToStep(n)`, `loadMcqs()` (fetches `/api/question-bank/filter`), `toggleMcq(id)`, `selectAllMcqs()`, `clearMcqSelection()`. `reset()` now also clears the wizard state and returns to step 1.
+- The original state fields, `setPaperMeta()`/`setLogo()`/`setSelectedMcqs()` actions, and the `localStorage` persistence watch were left intact.
+
+### Wiring (`App.vue`)
+- Import swapped from `AutoPaperGenerator` → `AutoPaperWizard`; the `currentView === 'auto'` branch now renders the wizard. The store's new `loadMcqs()` is used by step 3 instead of the view-local `loadMcqs`/`hasLoaded` logic from the old component.
+
+### Notes
+- Per the project's rollback convention, `AutoPaperGenerator.vue` was **renamed** (not deleted) to `AutoFormLegacy.vue` and is no longer imported/routed; it preserves the `?paper_id=N` edit-hydration path (`loadPaperForEdit()`) and the full `resizeLogo()` implementation as reference.
+- `store.loadMcqs()` assigns the raw `res.data` array from `/api/question-bank/filter` (which wraps results as `{ success, data }`), so `AutoStepThree` renders `question.data.stem_text` / `question.data.options` accordingly.
 
 ---
 
@@ -552,4 +583,4 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 10.  **User Papers (My Papers)**: Non-admin users manage their saved papers at `/user/dashboard` → "My Papers". The SPA persists papers via `/api/user/papers` (session auth + CSRF from `bootstrap.js`); the Blade dashboard reads/writes them via the `user.papers.*` routes.
 
 ---
-*Last Updated: August 19, 2026 by ExamCraft AI Assistant*
+*Last Updated: August 22, 2026 by ExamCraft AI Assistant*

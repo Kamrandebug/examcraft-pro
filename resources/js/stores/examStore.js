@@ -54,6 +54,44 @@ export const useExamStore = defineStore('exam', () => {
     const selectedBlockId = ref(null);
     const activePageIdx = ref(0);
 
+    const editPaperId = ref(null);
+    const isEditMode = ref(false);
+
+    function loadFromSnapshot(pd) {
+        if (!pd) return;
+        if (pd.pages) pages.value = pd.pages;
+        if (pd.paperMeta) paperMeta.value = { ...paperMeta.value, ...pd.paperMeta };
+        if (pd.styleState) Object.assign(styleState, pd.styleState);
+        if (pd.coverFooter) Object.assign(coverFooter, pd.coverFooter);
+        if (pd.pageFooter) Object.assign(pageFooter, pd.pageFooter);
+
+        if (pd.globalOpts) {
+            const g = pd.globalOpts;
+            if (g.qNumberStart !== undefined) qNumberStart.value = g.qNumberStart;
+            if (g.globalOptsLayout !== undefined) globalOptsLayout.value = g.globalOptsLayout;
+            if (g.showAnswerBoxes !== undefined) showAnswerBoxes.value = g.showAnswerBoxes;
+            if (g.showMarks !== undefined) showMarks.value = g.showMarks;
+            if (g.twoColumn !== undefined) twoColumn.value = g.twoColumn;
+        }
+    }
+
+    function getSnapshot() {
+        return {
+            pages: pages.value,
+            paperMeta: paperMeta.value,
+            styleState: styleState,
+            coverFooter: coverFooter,
+            pageFooter: pageFooter,
+            globalOpts: {
+                qNumberStart: qNumberStart.value,
+                globalOptsLayout: globalOptsLayout.value,
+                showAnswerBoxes: showAnswerBoxes.value,
+                showMarks: showMarks.value,
+                twoColumn: twoColumn.value
+            }
+        };
+    }
+
     return {
         paperMeta,
         pages,
@@ -66,6 +104,10 @@ export const useExamStore = defineStore('exam', () => {
         coverFooter,
         pageFooter,
         selectedBlockId,
-        activePageIdx
+        activePageIdx,
+        editPaperId,
+        isEditMode,
+        loadFromSnapshot,
+        getSnapshot
     };
 });

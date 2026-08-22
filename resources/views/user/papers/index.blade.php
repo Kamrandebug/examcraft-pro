@@ -71,9 +71,15 @@
                                     <a href="{{ route('user.papers.show', $paper->id) }}" class="btn btn-info btn-sm" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="{{ $paper->type === 'manual' ? route('user.papers.export', $paper->id) : route('user.papers.edit', $paper->id) }}" class="btn btn-warning btn-sm" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
+                                    @if($paper->type === 'auto')
+                                        <a href="{{ url('/user/auto') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-sm" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    @else
+                                        <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-sm" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    @endif
                                     <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-success btn-sm" title="Print / Export">
                                         <i class="fas fa-print"></i>
                                     </a>

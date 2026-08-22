@@ -91,7 +91,10 @@ Route::prefix('user')->middleware(['auth'])->name('user.')->group(function () {
 
     Route::get('papers', [UserPaperController::class, 'index'])->name('papers.index');
     Route::get('papers/{id}', [UserPaperController::class, 'show'])->name('papers.show');
-    Route::get('papers/{id}/edit', [UserPaperController::class, 'edit'])->name('papers.edit');
+    Route::get('papers/{paper}/edit', function (\App\Models\UserPaper $paper) {
+        $path = $paper->type === 'auto' ? '/user/auto' : '/user/manual';
+        return redirect($path . '?paper_id=' . $paper->id);
+    })->name('papers.edit');
     Route::put('papers/{id}', [UserPaperController::class, 'update'])->name('papers.update');
     Route::delete('papers/{id}', [UserPaperController::class, 'destroy'])->name('papers.destroy');
     Route::get('papers/{id}/export', [UserPaperController::class, 'export'])->name('papers.export');
