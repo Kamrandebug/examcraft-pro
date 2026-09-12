@@ -68,9 +68,15 @@
                             <td>{{ $paper->created_at->format('d M Y') }}</td>
                             <td>
                                 <div class="btn-group">
-                                    <a href="{{ route('user.papers.show', $paper->id) }}" class="btn btn-info btn-sm" title="View">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
+                                    @if($paper->type === 'manual')
+                                        <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}&mode=preview" class="btn btn-info btn-sm" title="View Paper">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('user.papers.show', $paper->id) }}" class="btn btn-info btn-sm" title="View Paper">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @endif
                                     @if($paper->type === 'auto')
                                         <a href="{{ url('/user/auto') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-sm" title="Edit">
                                             <i class="fas fa-edit"></i>

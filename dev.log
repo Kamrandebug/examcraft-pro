@@ -1,0 +1,44 @@
+> Composer\Config::disableProcessTimeout
+> npx concurrently -c "#93c5fd,#c4b5fd,#fb7185,#fdba74" "php artisan serve" "php artisan queue:listen --tries=1 --timeout=0" "php artisan pail --timeout=0" "npm run dev" --names=server,queue,logs,vite --kill-others
+[logs] 
+[queue] 
+[queue]   [37;44m INFO [39;49m Processing jobs from the [1m[default][22m queue.  
+[queue] 
+[logs]   [41;1m RuntimeException [49;22m
+[logs] 
+[logs] [39;1m  The [pcntl] extension is required to run Pail.[39;22m
+[logs] 
+[logs]   at [32mvendor\laravel\pail\src\Guards\EnsurePcntlIsAvailable.php[39m:[32m15[39m
+[logs]      11▕      */
+[logs]      12▕     public static function check(): void
+[logs]      13▕     {
+[logs]      14▕         if (! function_exists('pcntl_fork')) {
+[logs]   ➜  15▕             throw new RuntimeException('The [pcntl] extension is required to run Pail.');
+[logs]      16▕         }
+[logs]      17▕     }
+[logs]      18▕ }
+[logs]      19▕
+[logs] 
+[logs]   [33m1   [39m[39;1mvendor\laravel\pail\src\Console\Commands\PailCommand.php[39;22m:[39;1m46[39;22m
+[logs]   [90m    Laravel\Pail\Guards\EnsurePcntlIsAvailable::check()[39m
+[logs] 
+[logs]   [33m2   [39m[39;1mvendor\laravel\framework\src\Illuminate\Container\BoundMethod.php[39;22m:[39;1m36[39;22m
+[logs]   [90m    Laravel\Pail\Console\Commands\PailCommand::handle(Object(Laravel\Pail\ProcessFactory))[39m
+[logs] 
+[logs] php artisan pail --timeout=0 exited with code 1
+--> Sending SIGTERM to other processes..
+[vite] 
+[vite] > dev
+[vite] > vite
+[vite] 
+[server] 
+[server]   [37;44m INFO [39;49m Server running on [1m[http://127.0.0.1:8000][22m.  
+[server] 
+[server] [33m  [39m[33;1mPress Ctrl+C to stop the server[39;22m
+[server] 
+[vite] npm run dev exited with code 1
+--> Sending SIGTERM to other processes..
+[queue] php artisan queue:listen --tries=1 --timeout=0 exited with code 1
+--> Sending SIGTERM to other processes..
+[server] php artisan serve exited with code 1
+[37;41mScript npx concurrently -c "#93c5fd,#c4b5fd,#fb7185,#fdba74" "php artisan serve" "php artisan queue:listen --tries=1 --timeout=0" "php artisan pail --timeout=0" "npm run dev" --names=server,queue,logs,vite --kill-others handling the dev event returned with error code 1[39;49m

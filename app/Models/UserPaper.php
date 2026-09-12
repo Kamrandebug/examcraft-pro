@@ -44,6 +44,14 @@ class UserPaper extends Model
     }
 
     /**
+     * Scope to fetch all papers (no user filter — for admin).
+     */
+    public function scopeForAdmin($query)
+    {
+        return $query;
+    }
+
+    /**
      * Count of questions within this paper (auto: selected MCQs, manual: MCQ blocks).
      */
     public function getQuestionCountAttribute(): int

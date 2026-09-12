@@ -1355,4 +1355,37 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
     max-height: 80px !important;
     max-width: 100px !important;
   }
+
+  /* ── Manual Paper Preview (SPA) ── */
+  .mp-action-bar {
+    display: none !important;
+  }
+  
+  .mp-preview-shell {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  
+  .mp-paper-sheet {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    box-shadow: none !important;
+    min-height: unset !important;
+  }
+  
+  .mp-paper-sheet * {
+    color: #000 !important;
+    background: transparent !important;
+  }
+  
+  .mp-mcq {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  
+  .mp-page-break {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
 }

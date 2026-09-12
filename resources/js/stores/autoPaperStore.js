@@ -234,8 +234,13 @@ export const useAutoPaperStore = defineStore('autoPaper', () => {
         this.editLoading = true;
         this.editError = null;
         try {
-            const res = await window.axios.get(`/api/user/papers/${id}`);
-            
+            // Determine API endpoint based on admin context
+            const apiUrl = window.adminTargetUserId
+                ? `/api/admin/users/${window.adminTargetUserId}/papers/${id}`
+                : `/api/user/papers/${id}`;
+
+            const res = await window.axios.get(apiUrl);
+
             const paper = res.data.paper ?? res.data;
 
             // Hydrate paper meta fields
@@ -288,6 +293,7 @@ export const useAutoPaperStore = defineStore('autoPaper', () => {
                 school_name: this.schoolName,
                 exam_date: this.paperDate,
                 paper_data: {
+                    paperTitle: this.paperTitle,  // ADDED: sync title to paper_data
                     paperCode: this.paperCode,
                     session: this.session,
                     duration: this.duration,
@@ -300,7 +306,13 @@ export const useAutoPaperStore = defineStore('autoPaper', () => {
                     subject: this.subject
                 }
             };
-            await window.axios.put(`/api/user/papers/${this.editPaperId}`, payload);
+
+            // Determine API endpoint based on admin context
+            const apiUrl = window.adminTargetUserId
+                ? `/api/admin/users/${window.adminTargetUserId}/papers/${this.editPaperId}`
+                : `/api/user/papers/${this.editPaperId}`;
+
+            await window.axios.put(apiUrl, payload);
             return true;
         } catch (err) {
             console.error('updatePaper error:', err);

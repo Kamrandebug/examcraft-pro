@@ -230,14 +230,33 @@ async function saveManualPaper() {
             paper_data: paperData,
         };
 
+        // Determine API endpoint based on admin context
+        const apiBaseUrl = window.adminTargetUserId
+            ? `/api/admin/users/${window.adminTargetUserId}/papers`
+            : '/api/user/papers';
+
         if (examStore.editPaperId) {
-            await window.axios.put(`/api/user/papers/${examStore.editPaperId}`, payload);
+            await window.axios.put(`${apiBaseUrl}/${examStore.editPaperId}`, payload);
             showToast('Paper updated successfully!', 'success');
+
+            // Redirect to admin papers section if in admin context
+            if (window.adminTargetUserId) {
+                setTimeout(() => {
+                    window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
+                }, 800);
+            }
         } else {
-            const { data } = await window.axios.post('/api/user/papers', payload);
+            const { data } = await window.axios.post(apiBaseUrl, payload);
             examStore.editPaperId = data.paper.id;
             examStore.isEditMode = true;
             showToast('Paper saved to your account!', 'success');
+
+            // Redirect to admin papers section if in admin context
+            if (window.adminTargetUserId) {
+                setTimeout(() => {
+                    window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
+                }, 800);
+            }
         }
     } catch (err) {
         console.error('Save manual paper failed:', err);

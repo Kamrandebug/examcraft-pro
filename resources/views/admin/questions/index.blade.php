@@ -23,6 +23,9 @@
             <div class="card-header">
                 <h3 class="card-title">All Questions</h3>
                 <div class="card-tools">
+                    <a href="{{ route('admin.questions.bulk-import-form') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-file-import"></i> Bulk Import
+                    </a>
                     <a href="{{ route('admin.questions.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Add New Question
                     </a>
@@ -58,14 +61,14 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('admin.questions.show', $question->id) }}" class="btn btn-info btn-sm">
+                                    <div class="btn-group action-group">
+                                        <a href="{{ route('admin.questions.show', $question->id) }}" class="btn btn-action btn-action-view" title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ route('admin.questions.edit', $question->id) }}" class="btn btn-warning btn-sm">
+                                        <a href="{{ route('admin.questions.edit', $question->id) }}" class="btn btn-action btn-action-edit" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $question->id }}" data-url="{{ route('admin.questions.destroy', $question->id) }}">
+                                        <button type="button" class="btn btn-action btn-action-delete delete-btn" data-id="{{ $question->id }}" data-url="{{ route('admin.questions.destroy', $question->id) }}" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>

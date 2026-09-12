@@ -55,8 +55,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($data['options'] as $option)
-                            <tr class="{{ ($option['label'] ?? '') == ($data['correct_answer'] ?? '') ? 'table-success' : '' }}">
+                            @foreach($data['options'] as $index => $option)
+                            <tr class="{{ $index == $data['correct_answer'] ? 'table-success' : '' }}">
                                 <td><strong>{{ $option['label'] ?? '—' }}</strong></td>
                                 <td>{{ $option['text'] ?? '—' }}</td>
                                 <td>
@@ -67,8 +67,8 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if(($option['label'] ?? '') == ($data['correct_answer'] ?? ''))
-                                        <span class="badge badge-success">Correct</span>
+                                    @if($index == $data['correct_answer'])
+                                        <span class="badge badge-success">✓ Correct</span>
                                     @else
                                         —
                                     @endif
@@ -106,8 +106,10 @@
                         <div class="form-group">
                             <label><strong>Correct Answer</strong></label>
                             <p>
-                                @if(!empty($data['correct_answer']))
-                                    <span class="badge badge-success">{{ $data['correct_answer'] }}</span>
+                                @if(isset($data['correct_answer']) && isset($data['options'][$data['correct_answer']]))
+                                    <span class="badge badge-success">
+                                        {{ $data['options'][$data['correct_answer']]['label'] }} — {{ $data['options'][$data['correct_answer']]['text'] }}
+                                    </span>
                                 @else
                                     —
                                 @endif

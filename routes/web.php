@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminSpaApiController;
+use App\Http\Controllers\AdminUserPaperController;
 use App\Http\Controllers\BlockController;
 use App\Http\Controllers\ExamCraftController;
 use App\Http\Controllers\ExamPaperController;
@@ -14,7 +16,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\UserPaperController;
 use App\Http\Controllers\UserPaperApiController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,8 +45,29 @@ Route::get('/dashboard', fn () => redirect('/'))->middleware('auth')->name('dash
 
 // ── SPA launchers (clean URLs — the route name carries the initial view) ──
 Route::middleware('auth')->group(function () {
-    Route::get('/user/manual', fn () => view('app', ['initialMode' => 'manual']))->name('user.manual');
-    Route::get('/user/auto', fn () => view('app', ['initialMode' => 'auto']))->name('user.auto');
+    Route::get('/user/manual', function (Request $request) {
+        $adminUserId = $request->query('admin_user');
+        $adminName = $request->query('admin_name');
+
+        return view('app', [
+            'initialMode' => 'manual',
+            'initialPaperId' => $request->query('paper_id'),
+            'adminTargetUserId' => $adminUserId ? intval($adminUserId) : null,
+            'adminTargetUserName' => $adminName,
+        ]);
+    })->name('user.manual');
+
+    Route::get('/user/auto', function (Request $request) {
+        $adminUserId = $request->query('admin_user');
+        $adminName = $request->query('admin_name');
+
+        return view('app', [
+            'initialMode' => 'auto',
+            'initialPaperId' => $request->query('paper_id'),
+            'adminTargetUserId' => $adminUserId ? intval($adminUserId) : null,
+            'adminTargetUserName' => $adminName,
+        ]);
+    })->name('user.auto');
 });
 
 // ── Breeze Profile Routes ─────────────────────────────────────────────────
@@ -58,6 +83,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
     Route::resource('users', UserController::class);
+
+    // Question bulk import routes (must come BEFORE resource route to take precedence)
+    Route::get('/questions/bulk-import', [QuestionBankController::class, 'showBulkImport'])->name('questions.bulk-import-form');
+    Route::post('/questions/bulk-import', [QuestionBankController::class, 'storeBulkImport'])->name('questions.bulk-import');
+
     Route::resource('questions', QuestionBankController::class);
     Route::resource('papers', ExamPaperController::class);
     Route::resource('papers.pages', PageController::class);
@@ -65,6 +95,21 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::resource('mcq-blocks', McqBlockController::class);
     Route::resource('mcq-blocks.mcq-options', McqOptionController::class);
     Route::resource('papers.topics', ExamPaperTopicController::class);
+
+    // Admin User Papers — Blade CRUD
+    Route::prefix('users/{user}/papers')
+         ->name('user.papers.')
+         ->group(function () {
+        Route::get('/', [AdminUserPaperController::class, 'index'])->name('index');
+        Route::get('/create', [AdminUserPaperController::class, 'create'])->name('create');
+        Route::post('/', [AdminUserPaperController::class, 'store'])->name('store');
+        Route::get('/{paper}', [AdminUserPaperController::class, 'show'])->name('show');
+        Route::get('/{paper}/edit', [AdminUserPaperController::class, 'edit'])->name('edit');
+        Route::put('/{paper}', [AdminUserPaperController::class, 'update'])->name('update');
+        Route::delete('/{paper}', [AdminUserPaperController::class, 'destroy'])->name('destroy');
+        Route::patch('/{paper}/status', [AdminUserPaperController::class, 'toggleStatus'])->name('toggle-status');
+        Route::get('/{paper}/export', [AdminUserPaperController::class, 'export'])->name('export');
+    });
 });
 
 // ── SPA API Routes (Auth protected, session cookie) ───────────────────────
@@ -76,6 +121,13 @@ Route::middleware('auth')->prefix('api/user')->name('api.user.')->group(function
     Route::post('papers', [UserPaperApiController::class, 'store'])->name('papers.store');
     Route::get('papers/{id}', [UserPaperApiController::class, 'show'])->name('papers.show');
     Route::put('papers/{id}', [UserPaperApiController::class, 'update'])->name('papers.update');
+});
+
+// Admin Paper API (called from Vue SPA in admin context — session auth + CSRF)
+Route::middleware(['auth', 'admin'])->prefix('api/admin/users/{user}/papers')->group(function () {
+    Route::post('/', [AdminSpaApiController::class, 'store']);
+    Route::put('/{paper}', [AdminSpaApiController::class, 'update']);
+    Route::get('/{paper}', [AdminSpaApiController::class, 'show']);
 });
 
 // ── SPA Catch-All Route (Auth protected) ──────────────────────────────────

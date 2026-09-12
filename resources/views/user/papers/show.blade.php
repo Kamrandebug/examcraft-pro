@@ -225,47 +225,43 @@
     </div>
 
 @else
-    {{-- Manual paper — metadata view --}}
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3 class="card-title">
-                        <span class="badge badge-manual mr-2">Manual</span>
-                        {{ $paper->title }}
-                    </h3>
-                    <span class="badge badge-{{ $paper->status }}">{{ ucfirst($paper->status) }}</span>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless table-sm">
-                        <tr><th width="160">School / Institution</th><td>{{ $paper->school_name ?? '—' }}</td></tr>
-                        <tr><th>Grade</th><td>{{ $paper->grade ?? '—' }}</td></tr>
-                        <tr><th>Subject</th><td>{{ $paper->subject ?? '—' }}</td></tr>
-                        <tr><th>Exam Date</th><td>{{ $paper->exam_date ? $paper->exam_date->format('d F Y') : '—' }}</td></tr>
-                        <tr><th>Questions</th><td>{{ $paper->question_count }}</td></tr>
-                        <tr><th>Created</th><td>{{ $paper->created_at->format('d M Y, h:i A') }}</td></tr>
-                    </table>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="callout callout-info border-left-info shadow-sm">
+                <h5 class="font-weight-bold text-info"><i class="fas fa-pencil-alt mr-2"></i>Manual Paper Details</h5>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><strong>Questions:</strong> {{ $paper->question_count }}</li>
+                            <li class="mb-2"><strong>Subject:</strong> {{ $paper->subject ?? 'Not specified' }}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><strong>Grade:</strong> {{ $paper->grade ?? 'Not specified' }}</li>
+                            <li class="mb-2"><strong>School:</strong> {{ $paper->school_name ?? 'Not specified' }}</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header"><h3 class="card-title">Actions</h3></div>
-                <div class="card-body">
-                    <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-success btn-block mb-2">
-                        <i class="fas fa-print mr-2"></i>Print / Export
-                    </a>
-                    <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-block mb-2">
-                        <i class="fas fa-edit mr-2"></i>Edit in Designer
-                    </a>
-                    <button type="button" class="btn btn-danger btn-block delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('user.papers.destroy', $paper->id) }}">
-                        <i class="fas fa-trash mr-2"></i>Delete Paper
-                    </button>
-                    <form id="delete-form-{{ $paper->id }}" action="{{ route('user.papers.destroy', $paper->id) }}" method="POST" style="display: none;">
-                        @csrf
-                        @method('DELETE')
-                    </form>
-                </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-4" style="gap: 10px;">
+                <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}&mode=preview" class="btn btn-primary shadow-sm">
+                    <i class="fas fa-eye mr-2"></i>View Full Paper
+                </a>
+                <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning shadow-sm">
+                    <i class="fas fa-edit mr-2"></i>Edit in Designer
+                </a>
+                <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}&mode=preview" class="btn btn-secondary shadow-sm" target="_blank">
+                    <i class="fas fa-print mr-2"></i>Print / Export PDF
+                </a>
+                <button type="button" class="btn btn-danger shadow-sm delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('user.papers.destroy', $paper->id) }}">
+                    <i class="fas fa-trash mr-2"></i>Delete Paper
+                </button>
+                <form id="delete-form-{{ $paper->id }}" action="{{ route('user.papers.destroy', $paper->id) }}" method="POST" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
             </div>
         </div>
     </div>

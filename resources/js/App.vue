@@ -21,9 +21,11 @@ import ResizeHandle from './components/ui/ResizeHandle.vue';
 import ProjectManagerModal from './components/modals/ProjectManagerModal.vue';
 import PreviewOverlay from './components/modals/PreviewOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
+import AdminContextBanner from './components/AdminContextBanner.vue';
 import HomeScreen from './views/HomeScreen.vue';
 import AutoPaperWizard from './components/AutoPaperWizard.vue';
 import AutoPaperPreview from './views/AutoPaperPreview.vue';
+import ManualPaperPreview from './views/ManualPaperPreview.vue';
 
 const uiStore = useUiStore();
 const examStore = useExamStore();
@@ -80,7 +82,12 @@ function initFromLauncher() {
 
 async function loadPaperFromServer(paperId) {
     try {
-        const { data } = await window.axios.get(`/api/user/papers/${paperId}`);
+        // Determine API endpoint based on admin context
+        const apiEndpoint = window.adminTargetUserId
+            ? `/api/admin/users/${window.adminTargetUserId}/papers/${paperId}`
+            : `/api/user/papers/${paperId}`;
+
+        const { data } = await window.axios.get(apiEndpoint);
         const paper = data.paper || {};
         const pd = data.paper_data || {};
 
@@ -137,6 +144,12 @@ onMounted(async () => {
 
     const params = new URLSearchParams(window.location.search);
     const paperId = params.get('paper_id');
+    const mode = params.get('mode');
+
+    if (paperId && mode === 'preview' && window.location.pathname.includes('/user/manual')) {
+        uiStore.setView('manual-preview');
+        return;
+    }
 
     if (paperId) {
         if (window.location.pathname.includes('/user/auto')) {
@@ -166,7 +179,8 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div id="app" :data-theme="uiStore.theme" style="display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden;">
+  <div id="app" :data-theme="uiStore.theme" style="display:grid;grid-template-rows:auto auto 1fr;height:100vh;overflow:hidden;">
+    <AdminContextBanner />
     <template v-if="uiStore.currentView === 'manual'">
       <TopBar />
       <div id="main">
@@ -202,6 +216,7 @@ watchEffect(() => {
     <HomeScreen v-else-if="uiStore.currentView === 'home'" />
     <AutoPaperWizard v-else-if="uiStore.currentView === 'auto'" />
     <AutoPaperPreview v-else-if="uiStore.currentView === 'auto-preview'" />
+    <ManualPaperPreview v-else-if="uiStore.currentView === 'manual-preview'" />
   </div>
 </template>
 

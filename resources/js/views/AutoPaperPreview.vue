@@ -217,14 +217,26 @@ async function savePaper() {
       },
     };
 
+    // Determine API endpoint based on admin context
+    const baseUrl = window.adminTargetUserId
+      ? `/api/admin/users/${window.adminTargetUserId}/papers`
+      : '/api/user/papers';
+
     if (savedPaperId.value) {
-      await window.axios.put(`/api/user/papers/${savedPaperId.value}`, payload);
+      await window.axios.put(`${baseUrl}/${savedPaperId.value}`, payload);
     } else {
-      const { data } = await window.axios.post('/api/user/papers', payload);
+      const { data } = await window.axios.post(baseUrl, payload);
       savedPaperId.value = data.paper.id;
     }
 
-    showToast('Paper saved to your dashboard!', 'success');
+    showToast('Paper saved successfully!', 'success');
+
+    // Redirect to admin papers section if in admin context
+    if (window.adminTargetUserId) {
+      setTimeout(() => {
+        window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
+      }, 800);
+    }
   } catch (err) {
     console.error('Save failed:', err);
     showToast('Failed to save paper. Please try again.', 'error');

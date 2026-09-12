@@ -36,6 +36,7 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
+                            <th>Papers</th>
                             <th>Created At</th>
                             <th>Actions</th>
                         </tr>
@@ -51,14 +52,22 @@
                                     {{ ucfirst($user->role?->name ?? 'User') }}
                                 </span>
                             </td>
+                            <td>
+                                <a href="{{ route('admin.user.papers.index', $user->id) }}" class="badge badge-info">
+                                    {{ $user->userPapers()->count() }} papers
+                                </a>
+                            </td>
                             <td>{{ $user->created_at->format('Y-m-d H:i') }}</td>
                             <td>
-                                <div class="btn-group">
-                                    <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-warning btn-sm">
+                                <div class="btn-group action-group">
+                                    <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-action btn-action-edit" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    <a href="{{ route('admin.user.papers.index', $user->id) }}" class="btn btn-action btn-action-view" title="View Papers">
+                                        <i class="fas fa-file-alt"></i>
+                                    </a>
                                     @if(auth()->id() !== $user->id)
-                                    <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $user->id }}" data-url="{{ route('admin.users.destroy', $user->id) }}">
+                                    <button type="button" class="btn btn-action btn-action-delete delete-btn" data-id="{{ $user->id }}" data-url="{{ route('admin.users.destroy', $user->id) }}" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                     @endif

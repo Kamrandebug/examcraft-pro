@@ -40,6 +40,10 @@
         // Initial SPA view + paper (injected by the launching route)
         window.initialMode = @json($initialMode ?? '');
         window.initialPaperId = @json($initialPaperId ?? '');
+
+        // Admin context (injected when admin is creating/editing a paper on behalf of another user)
+        window.adminTargetUserId = @json($adminTargetUserId ?? null);
+        window.adminTargetUserName = @json($adminTargetUserName ?? null);
     </script>
 </head>
 <body>

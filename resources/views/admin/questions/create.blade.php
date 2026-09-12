@@ -32,10 +32,10 @@
                 </div>
 
                 <div class="card-body">
-                    {{-- Grade + Subject + Marks --}}
+                    {{-- Grade + Subject --}}
                     <div class="form-group row">
                         <label for="grade" class="col-sm-2 col-form-label">Grade <span class="text-danger">*</span></label>
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                             <select name="grade" id="grade" class="form-control @error('grade') is-invalid @enderror" required>
                                 <option value="">— Select Grade —</option>
                                 <option value="O Level"   {{ old('grade') == 'O Level'    ? 'selected' : '' }}>O Level</option>
@@ -50,18 +50,13 @@
                         </div>
 
                         <label for="subject" class="col-sm-2 col-form-label">Subject <span class="text-danger">*</span></label>
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                             <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required disabled>
                                 <option value="">— Select Grade First —</option>
                             </select>
                             @error('subject')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                        </div>
-
-                        <label for="marks" class="col-sm-1 col-form-label">Marks</label>
-                        <div class="col-sm-1">
-                            <input type="number" name="marks" id="marks" class="form-control" min="0" value="{{ old('marks', 1) }}">
                         </div>
                     </div>
 
@@ -92,45 +87,53 @@
 
                     <hr>
 
-                    {{-- Options A-D + correct answer --}}
-                    <h5>Answer Options</h5>
-                    @foreach(['A', 'B', 'C', 'D'] as $opt)
-                        @php $lower = strtolower($opt); @endphp
-                        <div class="card card-light border mb-3">
-                            <div class="card-body py-2">
-                                <div class="row align-items-end">
-                                    <div class="col-sm-2">
-                                        <span class="badge badge-primary">Option {{ $opt }}</span>
-                                    </div>
-                                    <div class="col-sm-6">
-                                        <label for="option_{{ $lower }}_text" class="mb-0">Text</label>
-                                        <input type="text" name="option_{{ $lower }}_text" id="option_{{ $lower }}_text" class="form-control @error('option_'.$lower.'_text') is-invalid @enderror" placeholder="Enter option {{ $opt }} text" value="{{ old('option_'.$lower.'_text') }}">
-                                        @error('option_'.$lower.'_text')
-                                            <div class="invalid-feedback d-block">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-sm-4">
-                                        <label for="option_{{ $lower }}_image" class="mb-0">Image (optional)</label>
-                                        <div class="custom-file">
-                                            <input type="file" name="option_{{ $lower }}_image" class="custom-file-input" id="option_{{ $lower }}_image" onchange="previewOptionImage(this, 'option-preview-{{ $opt }}')">
-                                            <label class="custom-file-label" for="option_{{ $lower }}_image">Choose image</label>
+                    {{-- Dynamic Options (4-10, starting with 4) --}}
+                    <h5>Answer Options <span class="text-muted small">(Start with 4, add up to 6 more)</span></h5>
+
+                    <div id="options-container">
+                        {{-- Default 4 options (A, B, C, D) - No delete button --}}
+                        @foreach(['A', 'B', 'C', 'D'] as $index => $opt)
+                            @php $lower = strtolower($opt); @endphp
+                            <div class="card card-light border mb-3 option-item" data-option-index="{{ $index }}" data-default="true">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-end">
+                                        <div class="col-sm-2">
+                                            <span class="badge badge-primary option-label">Option {{ $opt }}</span>
                                         </div>
-                                        <div id="option-preview-{{ $opt }}" class="mt-2">
-                                            <img src="#" class="option-preview-img img-thumbnail" alt="Option {{ $opt }} Preview">
+                                        <div class="col-sm-5">
+                                            <label class="mb-0">Text <span class="text-danger">*</span></label>
+                                            <input type="text" name="option_text[]" class="form-control option-text" placeholder="Enter option text" value="{{ old('option_text.'.$index) }}">
+                                        </div>
+                                        <div class="col-sm-5">
+                                            <label class="mb-0">Image (optional)</label>
+                                            <div class="custom-file">
+                                                <input type="file" name="option_image[]" class="custom-file-input option-image" accept="image/*" onchange="previewOptionImage(this)">
+                                                <label class="custom-file-label">Choose image</label>
+                                            </div>
+                                            <div class="mt-2">
+                                                <img src="#" class="option-preview-img img-thumbnail" alt="Preview" style="display:none;">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" id="add-option-btn" class="btn btn-outline-primary btn-sm" onclick="addOption()">
+                            <i class="fa fa-plus"></i> Add Option
+                        </button>
+                        <small class="text-muted d-block mt-2">Options: <span id="option-count">4</span> / 10</small>
+                    </div>
 
                     <div class="form-group">
                         <label>Correct Answer <span class="text-danger">*</span></label>
-                        <div class="d-flex">
-                            @foreach(['A', 'B', 'C', 'D'] as $opt)
-                                <div class="icheck-success d-inline mr-4">
-                                    <input type="radio" name="correct_answer" value="{{ $opt }}" id="correct_{{ $opt }}" {{ old('correct_answer') == $opt ? 'checked' : '' }}>
-                                    <label for="correct_{{ $opt }}">{{ $opt }}</label>
+                        <div id="correct-answer-container" class="d-flex flex-wrap">
+                            @foreach(['A', 'B', 'C', 'D'] as $index => $opt)
+                                <div class="icheck-success d-inline mr-4 correct-answer-radio">
+                                    <input type="radio" name="correct_answer" value="{{ $index }}" id="correct_{{ $index }}" {{ old('correct_answer') == $index ? 'checked' : '' }}>
+                                    <label for="correct_{{ $index }}">{{ $opt }}</label>
                                 </div>
                             @endforeach
                         </div>
@@ -196,6 +199,147 @@
             populateSubjects($(this).val(), '');
         });
 
+        // ── Dynamic Options Management ──────────────────────────────────────
+        const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const MAX_OPTIONS = 10;
+        const MIN_OPTIONS = 4;
+
+        function getOptionCount() {
+            return $('#options-container .option-item').length;
+        }
+
+        function updateOptionLabels() {
+            $('#options-container .option-item').each(function (index) {
+                $(this).find('.option-label').text('Option ' + optionLabels[index]);
+                $(this).data('option-index', index);
+            });
+        }
+
+        function updateCorrectAnswerRadios() {
+            const count = getOptionCount();
+            $('#correct-answer-container').empty();
+
+            for (let i = 0; i < count; i++) {
+                const label = optionLabels[i];
+                const html = `
+                    <div class="icheck-success d-inline mr-4 correct-answer-radio">
+                        <input type="radio" name="correct_answer" value="${i}" id="correct_${i}">
+                        <label for="correct_${i}">${label}</label>
+                    </div>
+                `;
+                $('#correct-answer-container').append(html);
+            }
+        }
+
+        function updateAddButtonVisibility() {
+            const count = getOptionCount();
+            if (count >= MAX_OPTIONS) {
+                $('#add-option-btn').hide();
+            } else {
+                $('#add-option-btn').show();
+            }
+            $('#option-count').text(count);
+
+            // Show delete buttons only for added options (data-option-index >= 4)
+            $('#options-container .remove-option').each(function () {
+                const $optionItem = $(this).closest('.option-item');
+                const optionIndex = parseInt($optionItem.data('option-index'));
+                if (optionIndex >= MIN_OPTIONS) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+
+        function addOption() {
+            const count = getOptionCount();
+            if (count >= MAX_OPTIONS) {
+                alert('Maximum 10 options allowed');
+                return;
+            }
+
+            const newIndex = count;
+            const html = `
+                <div class="card card-light border mb-3 option-item" data-option-index="${newIndex}" data-default="false">
+                    <div class="card-body py-2">
+                        <div class="row align-items-end">
+                            <div class="col-sm-2">
+                                <span class="badge badge-primary option-label">Option ${optionLabels[newIndex]}</span>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="mb-0">Text <span class="text-danger">*</span></label>
+                                <input type="text" name="option_text[]" class="form-control option-text" placeholder="Enter option text">
+                            </div>
+                            <div class="col-sm-3">
+                                <label class="mb-0">Image (optional)</label>
+                                <div class="custom-file">
+                                    <input type="file" name="option_image[]" class="custom-file-input option-image" accept="image/*" onchange="previewOptionImage(this)">
+                                    <label class="custom-file-label">Choose image</label>
+                                </div>
+                                <div class="mt-2">
+                                    <img src="#" class="option-preview-img img-thumbnail" alt="Preview" style="display:none;">
+                                </div>
+                            </div>
+                            <div class="col-sm-3 text-right">
+                                <button type="button" class="btn btn-sm btn-danger remove-option" onclick="removeOption(this)">
+                                    <i class="fa fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $('#options-container').append(html);
+            if (typeof bsCustomFileInput !== 'undefined') {
+                bsCustomFileInput.init();
+            }
+            updateOptionLabels();
+            updateCorrectAnswerRadios();
+            updateAddButtonVisibility();
+        }
+
+        function removeOption(btn) {
+            const $item = $(btn).closest('.option-item');
+            const index = $('#options-container .option-item').index($item);
+
+            if (index < MIN_OPTIONS) {
+                alert('Cannot delete default options');
+                return;
+            }
+
+            $item.remove();
+            updateOptionLabels();
+            updateCorrectAnswerRadios();
+            updateAddButtonVisibility();
+        }
+
+        // ── Form Validation ─────────────────────────────────────────────────
+        $('#question-form').on('submit', function (e) {
+            const count = getOptionCount();
+            let allFilled = true;
+
+            $('#options-container .option-text').each(function () {
+                if ($(this).val().trim() === '') {
+                    allFilled = false;
+                    $(this).addClass('is-invalid');
+                }
+            });
+
+            if (!allFilled) {
+                e.preventDefault();
+                alert('All option texts are required');
+                return false;
+            }
+
+            if ($('input[name="correct_answer"]:checked').length === 0) {
+                e.preventDefault();
+                alert('Please select the correct answer');
+                return false;
+            }
+        });
+
         // ── Image previews ──────────────────────────────────────────────────
         function previewImage(input, containerId) {
             const preview = document.getElementById('stem-image-preview');
@@ -213,8 +357,8 @@
             }
         }
 
-        function previewOptionImage(input, previewId) {
-            const preview = document.getElementById(previewId).querySelector('img');
+        function previewOptionImage(input) {
+            const preview = $(input).closest('.custom-file').next('.mt-2').find('img')[0];
 
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -225,5 +369,10 @@
                 reader.readAsDataURL(input.files[0]);
             }
         }
+
+        // Initialize on page load
+        $(document).ready(function () {
+            updateAddButtonVisibility();
+        });
     </script>
 @endsection

@@ -54,14 +54,14 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('admin.papers.show', $paper->id) }}" class="btn btn-info btn-sm">
+                                    <div class="btn-group action-group">
+                                        <a href="{{ route('admin.papers.show', $paper->id) }}" class="btn btn-action btn-action-view" title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{{ route('admin.papers.edit', $paper->id) }}" class="btn btn-warning btn-sm">
+                                        <a href="{{ route('admin.papers.edit', $paper->id) }}" class="btn btn-action btn-action-edit" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('admin.papers.destroy', $paper->id) }}">
+                                        <button type="button" class="btn btn-action btn-action-delete delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('admin.papers.destroy', $paper->id) }}" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>

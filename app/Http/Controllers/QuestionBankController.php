@@ -32,25 +32,28 @@ class QuestionBankController extends Controller
      */
     public function store(Request $request)
     {
+        // Validate dynamic options (minimum 4, maximum 10)
+        $optionCount = count($request->input('option_text', []));
+
         $request->validate([
             'subject'       => 'required|string|max:100',
             'grade'         => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
-            'marks'         => 'nullable|integer|min:0',
 
             'stem_text'     => 'required_without:stem_image',
             'stem_image'    => 'nullable|image|max:2048',
 
-            'option_a_text' => 'required_without:option_a_image',
-            'option_a_image' => 'nullable|image|max:2048',
-            'option_b_text' => 'required_without:option_b_image',
-            'option_b_image' => 'nullable|image|max:2048',
-            'option_c_text' => 'required_without:option_c_image',
-            'option_c_image' => 'nullable|image|max:2048',
-            'option_d_text' => 'required_without:option_d_image',
-            'option_d_image' => 'nullable|image|max:2048',
+            'option_text.*' => 'required|string|max:500',
+            'option_image.*' => 'nullable|image|max:2048',
 
-            'correct_answer' => 'required|in:A,B,C,D',
+            'correct_answer' => 'required|integer|min:0|max:9',
         ]);
+
+        // Validate option count (4-10)
+        if ($optionCount < 4 || $optionCount > 10) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['options' => 'You must provide between 4 and 10 options.']);
+        }
 
         $data = $this->buildData($request, null);
 
@@ -58,7 +61,7 @@ class QuestionBankController extends Controller
             'user_id' => Auth::id() ?? (\App\Models\User::first()->id ?? 1),
             'subject' => $request->input('subject'),
             'grade'   => $request->input('grade'),
-            'marks'   => $request->input('marks', 1),
+            'marks'   => 1, // Default marks, removed from form
             'data'    => $data,
         ]);
 
@@ -87,30 +90,33 @@ class QuestionBankController extends Controller
      */
     public function update(Request $request, QuestionBank $question)
     {
+        // Validate dynamic options (minimum 4, maximum 10)
+        $optionCount = count($request->input('option_text', []));
+
         $request->validate([
             'subject'       => 'required|string|max:100',
             'grade'         => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
-            'marks'         => 'nullable|integer|min:0',
 
             'stem_text'     => 'required_without:stem_image',
             'stem_image'    => 'nullable|image|max:2048',
 
-            'option_a_text' => 'required_without:option_a_image',
-            'option_a_image' => 'nullable|image|max:2048',
-            'option_b_text' => 'required_without:option_b_image',
-            'option_b_image' => 'nullable|image|max:2048',
-            'option_c_text' => 'required_without:option_c_image',
-            'option_c_image' => 'nullable|image|max:2048',
-            'option_d_text' => 'required_without:option_d_image',
-            'option_d_image' => 'nullable|image|max:2048',
+            'option_text.*' => 'required|string|max:500',
+            'option_image.*' => 'nullable|image|max:2048',
 
-            'correct_answer' => 'required|in:A,B,C,D',
+            'correct_answer' => 'required|integer|min:0|max:9',
         ]);
+
+        // Validate option count (4-10)
+        if ($optionCount < 4 || $optionCount > 10) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['options' => 'You must provide between 4 and 10 options.']);
+        }
 
         $question->update([
             'subject' => $request->input('subject'),
             'grade'   => $request->input('grade'),
-            'marks'   => $request->input('marks', $question->marks ?? 1),
+            'marks'   => 1, // Default marks, removed from form
             'data'    => $this->buildData($request, $question->data),
         ]);
 
@@ -119,14 +125,35 @@ class QuestionBankController extends Controller
     }
 
     /**
-     * Remove the specified question from the bank.
+     * Show the bulk import form for creating multiple questions from file
      */
-    public function destroy(QuestionBank $question)
+    public function showBulkImport()
     {
-        $question->delete();
+        return view('admin.questions.bulk-import');
+    }
 
-        return redirect()->route('admin.questions.index')
-                         ->with('success', 'Question deleted successfully.');
+    /**
+     * Store multiple questions from uploaded file
+     */
+    public function storeBulkImport(Request $request)
+    {
+        $request->validate([
+            'file'    => 'required|file|mimes:csv,xlsx,xls|max:5120',
+            'grade'   => 'required|string|in:O Level,A Level,8th Grade,9th Grade,10th Grade',
+            'subject' => 'required|string|max:100',
+        ]);
+
+        $service = new \App\Services\QuestionImportService();
+        $result = $service->import($request->file('file'), $request->input('grade'), $request->input('subject'));
+
+        if ($result['success']) {
+            return redirect()->route('admin.questions.index')
+                             ->with('success', $result['message']);
+        }
+
+        return redirect()->back()
+                         ->withInput()
+                         ->with('import_result', $result);
     }
 
     public function filter(Request $request)
@@ -200,30 +227,29 @@ class QuestionBankController extends Controller
     }
 
     /**
-     * Build the options array from the request, preserving existing images
-     * when no new file is provided for an option.
+     * Build the options array from the request (supports 2-10 options).
      */
     private function buildOptions(Request $request, array $existingOptions): array
     {
-        $existingByLabel = [];
-        foreach ($existingOptions as $opt) {
-            $existingByLabel[$opt['label'] ?? ''] = $opt;
-        }
+        $optionLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        $optionTexts = $request->input('option_text', []);
+        $optionImages = $request->file('option_image', []);
 
         $options = [];
-        foreach (['A', 'B', 'C', 'D'] as $label) {
-            $lower = strtolower($label);
-            $textKey  = "option_{$lower}_text";
-            $imageKey = "option_{$lower}_image";
 
-            $image = $existingByLabel[$label]['image'] ?? null;
-            if ($request->hasFile($imageKey)) {
-                $image = $request->file($imageKey)->store('options', 'public');
+        foreach ($optionTexts as $index => $text) {
+            $label = $optionLabels[$index] ?? chr(65 + $index); // Fallback to ASCII
+
+            $image = $existingOptions[$index]['image'] ?? null;
+
+            // If a new image file is uploaded for this option
+            if (isset($optionImages[$index]) && $optionImages[$index]) {
+                $image = $optionImages[$index]->store('options', 'public');
             }
 
             $options[] = [
                 'label' => $label,
-                'text'  => $request->input($textKey),
+                'text'  => $text,
                 'image' => $image,
             ];
         }

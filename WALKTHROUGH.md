@@ -84,7 +84,7 @@ examcraft-pro/
 │   │   │   ├── QuestionBankController.php      → Full CRUD for question bank + filter() API method (grade+subject query); stores stem/options/correct-answer in the JSON `data` column
 │   │   │   ├── QuestionBankOptionController.php → Nested CRUD (question-bank.options) — retained but now unused (options live in JSON)
 │   │   │   ├── UserDashboardController.php      → User-scoped dashboard with paper stats (total/auto/manual/published + recent)
-│   │   │   ├── UserPaperController.php          → Blade CRUD for a user's papers (index/show/edit/update/destroy/export) — non-admin only
+│   │   │   ├── UserPaperController.php          → Blade CRUD for a user's papers (index/show/update/destroy/export) — non-admin only; the edit() method was removed in favor of SPA redirect launchers
 │   │   │   ├── UserPaperApiController.php       → JSON API for the SPA (index/store/show/update) under session auth
 │   │   │   └── Controller.php                  → Base controller
 │   │   └── Middleware/
@@ -102,7 +102,7 @@ examcraft-pro/
 │   └── storage/                              → Symlink to storage/app/public/ (images)
 ├── resources/
 │   ├── css/
-│   │   └── app.css                           → Theme system (1,700+ lines) + Tailwind directives. 4 themes (Day/Afternoon/Night/Late Night) with CSS custom properties, paper typography variables, all component styles (topbar, panels, canvas, blocks, rulers, modals, toasts, etc.), and the A4 @page + @media print rules for auto-paper export
+│   │   └── app.css                           → Theme system (1,700+ lines) + Tailwind directives. 4 themes (Day/Afternoon/Night/Late Night) with CSS custom properties, paper typography variables, all component styles (topbar, panels, canvas, blocks, rulers, modals, toasts, etc.), the A4 @page + @media print rules for auto-paper export, and the `body.view-auto` wizard layout overrides (un-stick the 100vh `#app` so the wizard scrolls)
 │   ├── js/
 │   │   ├── app.js                            → Vue app entry point; initializes Pinia
 │   │   ├── App.vue                           → Root component; handles layout & auto-save
@@ -111,7 +111,7 @@ examcraft-pro/
 │   │   │   ├── uiStore.js                     → Zoom, panel widths, active tab, theme, toasts, currentView (SPA view routing)
 │   │   │   ├── typoStore.js                   → Typography settings + 6 Cambridge presets
 │   │   │   ├── projectStore.js                → IndexedDB CRUD, import/export
-│   │   │   └── autoPaperStore.js              → Auto Paper Generator state (paperTitle, schoolName, paperDate, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logoDataUrl, selectedMcqs, totalMarks) + multi-step wizard state (currentStep, mcqList, mcqLoading, mcqError, selectedMcqIds, isStep1Valid, selectedMcqCount); auto-persists wizard state to localStorage so a refresh keeps the selection
+│   │   │   └── autoPaperStore.js              → Auto Paper Generator state (paperTitle, schoolName, paperDate, paperCode, session, duration, grade, subject, additionalMaterials, instructions, logoDataUrl, selectedMcqs, totalMarks) + multi-step wizard state (currentStep, mcqList, mcqLoading, mcqError, selectedMcqIds, isStep1Valid, selectedMcqCount) + edit-mode state (editPaperId, isEditMode, editLoading, editError) with loadPaperForEdit()/updatePaper() actions; auto-persists wizard state to localStorage so a refresh keeps the selection
 │   │   ├── composables/                      → Reusable logic (useZoom, useTypography, etc.)
 │   │   ├── components/                       → UI components (Canvas, Panels, Blocks) + AutoPaperWizard.vue and the auto/ step components (AutoStepper, AutoStepOne/Two/Three)
 │   │   └── views/                            → SPA top-level views (HomeScreen, AutoFormLegacy, AutoPaperPreview)
@@ -124,7 +124,7 @@ examcraft-pro/
 │       ├── user/                             → Blade templates for the User Dashboard (AdminLTE)
 │       │   ├── dashboard.blade.php           → Stats cards + quick actions + recent papers
 │       │   ├── layouts/app.blade.php         → Shared AdminLTE layout (sidebar, navbar, toastr)
-│       │   └── papers/                       → My Papers views (index, show, edit)
+│       │   └── papers/                       → My Papers views (index, show); the standalone edit.blade.php was retired to edit.blade.php.bak in favor of the SPA wizard/manual edit launchers
 │       ├── auth/                             → Blade templates for Login/Register (Breeze v2.4.2)
 │       │   ├── combined.blade.php              → Flip-card Login/Register (standalone full-page; the active view)
 │       │   ├── login.blade.php                → Login form (legacy — kept as backup)
@@ -166,7 +166,7 @@ The SPA uses a modular "Block" system where each part of an exam paper is a dist
 6.  **Divider**: Horizontal separators with customizable styles (solid/dashed/dotted).
 
 ---
-## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16–17, 2026; refactored August 19, 2026)
+## 4a. Auto Paper Generator (New — August 11, 2026; extended August 16–17, 2026; refactored August 19, 2026; finalized August 22, 2026)
 
 A wizard-based paper generation flow that sources MCQs from the server-side question bank and produces a Cambridge-styled MCQ paper.
 
@@ -185,7 +185,7 @@ Login → User Dashboard ┬→ "Manual Paper" (SPA launcher) → canvas editor
 
 ### Frontend Stores
 - **`uiStore.js`** — `currentView: 'home'` state + `setView(view)` action (drives all view switching in App.vue).
-- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoFile`, `logoDataUrl`, `selectedMcqs`. Getter: `totalMarks` (question count). Actions: `setPaperMeta()`, `setLogo()`, `setSelectedMcqs()`, `reset()`. Ships `DEFAULT_INSTRUCTIONS` and `DEFAULT_ADDITIONAL_MATERIALS` constants for the Cambridge answer-sheet boilerplate. **Multi-step wizard additions** (§4b): state `currentStep`, `mcqList`, `mcqLoading`, `mcqError`, `selectedMcqIds`; computed `isStep1Valid`/`selectedMcqCount`; actions `nextStep`/`prevStep`/`goToStep`/`loadMcqs`/`toggleMcq`/`selectAllMcqs`/`clearMcqSelection`.
+- **`autoPaperStore.js`** — Composition API Pinia store. State: `paperTitle`, `schoolName`, `paperDate`, `grade`, `subject`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoFile`, `logoDataUrl`, `selectedMcqs`. Getter: `totalMarks` (question count). Actions: `setPaperMeta()`, `setLogo()`, `setSelectedMcqs()`, `reset()`. Ships `DEFAULT_INSTRUCTIONS` and `DEFAULT_ADDITIONAL_MATERIALS` constants for the Cambridge answer-sheet boilerplate. **Multi-step wizard additions** (§4b): state `currentStep`, `mcqList`, `mcqLoading`, `mcqError`, `selectedMcqIds`; computed `isStep1Valid`/`selectedMcqCount`; actions `nextStep`/`prevStep`/`goToStep`/`loadMcqs`/`toggleMcq`/`selectAllMcqs`/`clearMcqSelection`. **Edit-mode additions** (§4c): state `editPaperId`/`isEditMode`/`editLoading`/`editError` and actions `loadPaperForEdit(id)`/`updatePaper()`.
 
 ### View Components (`resources/js/views/`)
 | Component | View ID | Purpose |
@@ -199,8 +199,8 @@ The pre-refactor single-form view is retained as **`AutoFormLegacy.vue`** (a `vi
 ### Auto-paper Persistence (server-side "My Papers")
 - Both the **manual** editor (TopBar "Save to My Papers" cloud button) and the **auto** preview ("Save to My Papers") persist the paper to the server via `POST /api/user/papers` (create) or `PUT /api/user/papers/{id}` (update) using `window.axios`.
 - The manual paper payload bundles the full designer state (`pages`, `paperMeta`, `typoState`, `styleState`, `globalOpts`, `coverFooter`, `pageFooter`) into the `paper_data` JSON. The auto paper payload stores its wizard state (`paperTitle`, `schoolName`, `paperCode`, `session`, `duration`, `additionalMaterials`, `instructions`, `logoDataUrl`, `selectedMcqs`).
-- After the first save, the returned paper `id` is retained (in `manualPaperId` / `savedPaperId`) so subsequent saves **update** rather than duplicate.
-- **Editing a saved paper**: the `/user/papers/{id}/edit` route hydrates the SPA for a paper by `id` — this used to render `AutoPaperGenerator.vue` with `?paper_id=N` (whose `loadPaperForEdit()` fetched `/api/user/papers/{id}`, mirrored the `paper_data` into the store + local form refs, re-selected grade/subject, and re-loaded the matching MCQs with prior selections restored). Manual papers instead reopen the SPA in `manual` mode via `UserPaperController::export()`.
+- After the first save, the returned paper `id` is retained (in `examStore.editPaperId` for manual papers, `AutoPaperPreview`'s local `savedPaperId` for auto papers) so subsequent saves **update** rather than duplicate.
+- **Editing a saved paper** (§4c): the standalone Blade `edit.blade.php` was retired, and the `user.papers.edit` route now redirects to the SPA with a `?paper_id=N` query — `/user/auto` for auto papers, `/user/manual` for manual papers. The user-dashboard "Edit" buttons link to those URLs directly. `App.vue` reads `paper_id`, hydrates the store (`autoPaperStore.loadPaperForEdit()` for auto; `examStore.loadFromSnapshot()` for manual), enters edit mode, then strips the query string via `history.replaceState`.
 
 ### SPA Launchers & Role-Aware Entry
 - The root `/` route is now **role-aware**: guests → `landing`, admins → `admin.dashboard`, regular users → `user.dashboard`.
@@ -209,8 +209,8 @@ The pre-refactor single-form view is retained as **`AutoFormLegacy.vue`** (a `vi
 - `bootstrap/app.php` now uses a closure for `redirectUsersTo()` returning `/admin/dashboard` or `/user/dashboard` based on `isAdmin()`, and `bootstrap.js` injects the CSRF token into `window.axios` default headers for same-origin POST/PUT/DELETE.
 
 ### UI Updates
-- **`TopBar.vue`**: Added "Back to Home" button (left-arrow, first item) — `goHome()` navigates admins to the SPA `home` view and non-admins to `/user/dashboard`. Added the "Save to My Papers" cloud-upload button wired to the `/api/user/papers` endpoint.
-- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperWizard`, `AutoPaperPreview`. The `auto` view now mounts `AutoPaperWizard` (the multi-step generator) instead of the original `AutoPaperGenerator`.
+- **`TopBar.vue`**: Added "Back to Home" button (left-arrow, first item) — `goHome()` navigates admins to the SPA `home` view and non-admins to `/user/dashboard`. Added the "Save to My Papers" cloud-upload button wired to the `/api/user/papers` endpoint; it now keys off `examStore.editPaperId`/`isEditMode` and delegates snapshot assembly to `examStore.getSnapshot()`.
+- **`App.vue`**: Canvas editor layout wrapped in `<template v-if="uiStore.currentView === 'manual'">`; three new views added via `v-else-if`. New imports: `HomeScreen`, `AutoPaperWizard`, `AutoPaperPreview`. The `auto` view now mounts `AutoPaperWizard` (the multi-step generator) instead of the original `AutoPaperGenerator`. `onMounted` now handles `?paper_id=N` hydration before `initFromLauncher()`, and a `watchEffect` toggles a `view-auto` class on `<body>` for the wizard scroll layout.
 
 ### Auto Paper Preview, Print & Wizard Persistence (August 17, 2026)
 
@@ -259,15 +259,43 @@ The single-page `AutoPaperGenerator.vue` (830 lines, a flat form + MCQ list on o
 ### Store changes (`autoPaperStore.js`)
 - **New state**: `currentStep` (1–3), `mcqList`, `mcqLoading`, `mcqError`, `selectedMcqIds`.
 - **New computed**: `isStep1Valid` (grade + subject both present), `selectedMcqCount` (length of `selectedMcqIds`).
-- **New actions**: `nextStep()`/`prevStep()`/`goToStep(n)`, `loadMcqs()` (fetches `/api/question-bank/filter`), `toggleMcq(id)`, `selectAllMcqs()`, `clearMcqSelection()`. `reset()` now also clears the wizard state and returns to step 1.
-- The original state fields, `setPaperMeta()`/`setLogo()`/`setSelectedMcqs()` actions, and the `localStorage` persistence watch were left intact.
+- **New actions**: `nextStep()`/`prevStep()`/`goToStep(n)`, `loadMcqs()` (fetches `/api/question-bank/filter` and unwraps the `{ success, data }` response), `toggleMcq(id)`, `selectAllMcqs()`, `clearMcqSelection()`. `reset()` now also clears the wizard state and returns to step 1.
+- The original state fields, `setPaperMeta()`/`setLogo()`/`setSelectedMcqs()` actions, and the `localStorage` persistence watch were left intact (the persistence payload explicitly excludes the runtime-only edit-mode flags).
 
 ### Wiring (`App.vue`)
 - Import swapped from `AutoPaperGenerator` → `AutoPaperWizard`; the `currentView === 'auto'` branch now renders the wizard. The store's new `loadMcqs()` is used by step 3 instead of the view-local `loadMcqs`/`hasLoaded` logic from the old component.
 
+### Layout (`resources/css/app.css`)
+- A `body.view-auto` override block (toggled by `App.vue` via a `watchEffect`) re-enables vertical scrolling for the wizard: it sets `overflow-y: auto`, `height: auto`, and `min-height: 100vh` on `<body>`, and resets `#app` to `display: block` / `overflow: visible` / `height: auto`. Without this, the canvas editor's `height: 100vh; overflow: hidden` on `#app` would clip the multi-step form to a single non-scrolling screen.
+
 ### Notes
 - Per the project's rollback convention, `AutoPaperGenerator.vue` was **renamed** (not deleted) to `AutoFormLegacy.vue` and is no longer imported/routed; it preserves the `?paper_id=N` edit-hydration path (`loadPaperForEdit()`) and the full `resizeLogo()` implementation as reference.
-- `store.loadMcqs()` assigns the raw `res.data` array from `/api/question-bank/filter` (which wraps results as `{ success, data }`), so `AutoStepThree` renders `question.data.stem_text` / `question.data.options` accordingly.
+
+---
+
+## 4c. SPA Edit Mode for "My Papers" (August 22, 2026)
+
+The final piece of the auto-paper refactor replaces the standalone Blade editor with SPA-native editing for both auto and manual papers.
+
+### Route & controller changes
+- **`routes/web.php`** — `GET /user/papers/{paper}/edit` is now a closure (route model binding `UserPaper`) that redirects to `/user/auto?paper_id={id}` for `auto` papers or `/user/manual?paper_id={id}` for `manual` papers.
+- **`UserPaperController.php`** — the `edit()` method was removed (the Blade `edit` view no longer exists). `show`/`update`/`destroy`/`export` are unchanged.
+- **`resources/views/user/papers/edit.blade.php`** — retired to `edit.blade.php.bak` (kept for rollback, not routed).
+- **Dashboard/Index/Show Blade views** — the "Edit" links now branch on `paper->type`: `auto` papers link to `/user/auto?paper_id=N`, `manual` papers to `/user/manual?paper_id=N`.
+
+### SPA hydration (`App.vue`)
+- `onMounted` now checks `window.location.search` for `paper_id` **before** `initFromLauncher()`.
+  - `/user/auto?paper_id=N` → `uiStore.setView('auto')` then `autoPaperStore.loadPaperForEdit(N)` (sets `editLoading` first).
+  - `/user/manual?paper_id=N` → `uiStore.setView('manual')` then `loadManualPaperForEdit(N)`.
+  - Afterwards `window.history.replaceState({}, '', window.location.pathname)` strips the query string so a refresh doesn't re-trigger edit mode.
+- Manual hydration now routes through `examStore.loadFromSnapshot(pd)` (a new store method), restoring pages/paperMeta/styleState/coverFooter/pageFooter/globalOpts and reapplying typography, then sets `examStore.editPaperId` + `isEditMode`.
+
+### Store changes
+- **`autoPaperStore.js`** — new edit-mode state (`editPaperId`, `isEditMode`, `editLoading`, `editError`) plus `loadPaperForEdit(id)` (clears stale state + `localStorage`, fetches `/api/user/papers/{id}`, hydrates meta from `paper` columns and identity/MCQs from the `paper_data` JSON, then restarts at step 1) and `updatePaper()` (PUT `/api/user/papers/{id}` with the merged `paper_data`). Edit-mode flags are excluded from the `localStorage` persistence payload.
+- **`examStore.js`** — new `editPaperId`/`isEditMode` state, `loadFromSnapshot(pd)` (manual-paper hydration), and `getSnapshot()` (assembles the `paper_data` payload for saving; replaces the inline snapshot-building code in `TopBar`).
+
+### TopBar save button
+- The "Save to My Papers" cloud button now reflects edit state: tooltip reads "Update Paper" when `examStore.isEditMode`; the icon shows a check when `examStore.editPaperId` is set; `saveManualPaper()` builds the payload via `examStore.getSnapshot()` + `typoStore.typoState`, then PUTs (update) or POSTs (create) and toasts accordingly.
 
 ---
 
@@ -337,12 +365,124 @@ The `buildOptions()` helper handles **both** historical layouts — the row-per-
 
 ### Model & Controller Changes
 - **`QuestionBank.php`** — `$fillable` is now `['id', 'user_id', 'subject', 'grade', 'marks', 'data']` with `data` cast to an array. The `topic`/`difficulty`/`option_type`/`stem`/`correct_answer` scalar columns from the original `question_bank` schema are no longer populated.
-- **`QuestionBankController.php`** — `store()`/`update()` validate stem + options A–D + `correct_answer` and build the `data` JSON via `buildData()`/`buildOptions()`, uploading stem/option images to the `public` disk. `filter()` now reads the `data` array and reshapes options for the SPA (including `Storage::url()` for images).
+- **`QuestionBankController.php`** — `store()`/`update()` validate stem + options (4-10 dynamic) + `correct_answer` and build the `data` JSON via `buildData()`/`buildOptions()`, uploading stem/option images to the `public` disk. `filter()` now reads the `data` array and reshapes options for the SPA (including `Storage::url()` for images).
 - The admin `questions/*` Blade views were rewritten to read/write the JSON `data` column instead of the old relational columns.
+
+### Question Bank Form Enhancements (September 10, 2026)
+
+**Major UX Improvements to the Question Create/Edit Forms**:
+
+#### Removed Marks Field
+- The `marks` field has been **removed from the UI** (both create and edit forms)
+- Marks now default to `1` in the controller — simplified since questions in the generator are single-mark items
+
+#### Dynamic Options (4–10 total) — September 10, 2026
+- **Mandatory 4 default options** (A, B, C, D) — cannot be deleted, full width layout
+- **Optional added options** (E, F, G, H, I, J) — can be added via "Add Option" button, deletable via inline Delete buttons
+- **Delete button visibility**: Only appears on added options (E+), NOT on default options (A–D)
+- **Auto-labeling**: Labels automatically update when options are added/removed (A → J)
+- **Add button**: Hidden when 10 options reached; tooltip prevents accidental submission of incomplete forms
+- **Form validation**: Enforces all option texts are filled + correct answer is selected; prevents form submission otherwise
+
+#### Layout Fixes
+- **Default options (A–D)**: No delete button column, full-width text + image inputs (col-sm-5 + col-sm-5)
+- **Added options (E–J)**: Delete button visible on the right, narrower text + image inputs (col-sm-4 + col-sm-3 + col-sm-3 delete)
+- **Consistent styling**: Flex-based row layout ensures proper alignment across all option types
+
+#### Files Modified
+- `resources/views/admin/questions/create.blade.php` — dynamic options form with 4 defaults, Add Option button, no delete buttons on defaults
+- `resources/views/admin/questions/edit.blade.php` — same as create but pre-populates existing options and images
+- `app/Http/Controllers/QuestionBankController.php` — validation accepts 4–10 options (was 2–10 before), `buildOptions()` uses array indices instead of A–D letter mapping for storage
 
 ---
 
-## 7b. User Dashboard & "My Papers" (August 16, 2026)
+## 7c. Full Admin Control Over User Papers (September 10, 2026)
+
+A comprehensive feature enabling admins to create, read, update, delete, and manage **any user's papers** without impersonation. This supplements the existing user-scoped "My Papers" functionality with admin-only management routes and API endpoints.
+
+### Architecture
+
+#### Backend Controllers
+- **`AdminUserPaperController.php`** (9 methods) — Blade-based CRUD for admin management:
+  - `index(User $user)` — List all papers for a specific user (DataTables-ready)
+  - `create(User $user)` — Show paper type selector (manual/auto)
+  - `store(User $user)` — Create paper with `user_id = $user->id` (never `Auth::id()`)
+  - `show(User $user, UserPaper $paper)` — A4 preview render (auto or manual)
+  - `edit(User $user, UserPaper $paper)` — Redirect to SPA with admin context (`?admin_user={user_id}&admin_name={name}`)
+  - `update(User $user, UserPaper $paper)` — Update metadata (title, grade, subject, etc.)
+  - `destroy(User $user, UserPaper $paper)` — Delete paper with confirmation
+  - `toggleStatus(User $user, UserPaper $paper)` — PATCH to toggle draft ↔ published
+  - `export(User $user, UserPaper $paper)` — Download paper as JSON
+
+- **`AdminSpaApiController.php`** (3 methods) — JSON API for SPA editing in admin context:
+  - `store(User $user)` — Create paper via SPA (admin context)
+  - `update(User $user, UserPaper $paper)` — Update paper_data JSON via SPA (merges existing + new, syncs title)
+  - `show(User $user, UserPaper $paper)` — Fetch paper for SPA hydration
+
+#### Authorization Pattern
+- **Verification**: All admin methods verify `$paper->user_id === $user->id` or abort(404)
+- **Middleware**: `['auth', 'admin']` on all admin routes
+- **Scope**: Never uses `Auth::id()` — always scopes to the target `$user->id`
+
+#### Routes (`routes/web.php`)
+```
+Admin Blade Routes (nested under /admin/users/{user}/papers):
+  GET    /admin/users/{user}/papers              → index
+  GET    /admin/users/{user}/papers/create       → create
+  POST   /admin/users/{user}/papers              → store
+  GET    /admin/users/{user}/papers/{paper}      → show (A4 preview)
+  GET    /admin/users/{user}/papers/{paper}/edit → edit (redirect to SPA)
+  PUT    /admin/users/{user}/papers/{paper}      → update
+  DELETE /admin/users/{user}/papers/{paper}      → destroy
+  PATCH  /admin/users/{user}/papers/{paper}/status → toggleStatus
+  GET    /admin/users/{user}/papers/{paper}/export → export (JSON)
+
+Admin SPA API Routes (nested under /api/admin/users/{user}/papers):
+  POST   /api/admin/users/{user}/papers          → store
+  PUT    /api/admin/users/{user}/papers/{paper}  → update
+  GET    /api/admin/users/{user}/papers/{paper}  → show
+
+SPA Launchers (with admin context):
+  GET    /user/manual?admin_user={id}&admin_name={name}&paper_id={id} → manual editor
+  GET    /user/auto?admin_user={id}&admin_name={name}&paper_id={id}   → auto wizard
+```
+
+#### Frontend Context & Stores
+- **`app.blade.php`** — Injects `window.adminTargetUserId` and `window.adminTargetUserName` when admin context is active
+- **`autoPaperStore.js`** — `loadPaperForEdit()` and `updatePaper()` detect admin context and use `/api/admin/users/{userId}/papers` endpoint
+- **`examStore.js`** (via `TopBar.vue`) — `saveManualPaper()` detects admin context and uses admin endpoint
+- **`AdminContextBanner.vue`** — Red warning banner displays when editing a user's paper in admin context
+
+#### User Dropdown Integration
+- **Admin users dashboard** (`admin/users/index.blade.php`) — New "Papers" column shows clickable paper count linking to the admin papers list
+
+#### Post-Save Behavior
+- **AutoPaperPreview.vue** — After successful save in admin context, redirects to `/admin/users/{adminTargetUserId}/papers`
+- **TopBar.vue (manual save)** — After successful save in admin context, redirects to `/admin/users/{adminTargetUserId}/papers`
+- **Regular users** — Save operations complete without redirect (stay in editor or return to dashboard)
+
+#### Cache-Busting
+- **`AdminUserPaperController.show()`** — Response headers prevent browser caching of preview renders:
+  ```
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+  ```
+  This ensures admins always see the latest paper content after editing.
+
+#### Data Persistence
+- **Paper data flow**: Admin SPA edits → `/api/admin/users/{user}/papers/{paper}` PUT → `AdminSpaApiController.update()` merges `paper_data` JSON → saves to DB → preview shows updated content
+- **Verification**: Database correctly persists `paper_data` and column metadata (title, grade, subject, etc.)
+
+#### Blade Preview Views
+- **`admin/users/papers/show.blade.php`** — Renders auto and manual papers server-side:
+  - **Auto papers**: Full Cambridge exam format from `paper_data` (logo, school, subject/code/session, materials, instructions, Section A with MCQs)
+  - **Manual papers**: All block types (section, text, divider, image, table, mcq) rendered from `paper_data['pages'][].blocks[]`
+  - Derives display values from `paper_data` first, falls back to table columns
+
+---
+
+## 7d. User Dashboard & "My Papers" (August 16, 2026)
 
 A second, non-admin **User Dashboard** (AdminLTE) was added so regular users can manage their own saved papers server-side. Admins are redirected away (`UserDashboardController` and `UserPaperController` constructors bounce `isAdmin()` users back to `/`).
 
@@ -352,7 +492,7 @@ A second, non-admin **User Dashboard** (AdminLTE) was added so regular users can
 | GET | `/user/dashboard` | UserDashboardController@index | `user.dashboard` |
 | GET | `/user/papers` | UserPaperController@index | `user.papers.index` |
 | GET | `/user/papers/{id}` | UserPaperController@show | `user.papers.show` |
-| GET | `/user/papers/{id}/edit` | UserPaperController@edit | `user.papers.edit` |
+| GET | `/user/papers/{paper}/edit` | (closure) → redirects to `/user/auto` or `/user/manual` with `?paper_id=N` | `user.papers.edit` |
 | PUT | `/user/papers/{id}` | UserPaperController@update | `user.papers.update` |
 | DELETE | `/user/papers/{id}` | UserPaperController@destroy | `user.papers.destroy` |
 | GET | `/user/papers/{id}/export` | UserPaperController@export | `user.papers.export` |
@@ -373,7 +513,7 @@ Every `UserPaper` query is scoped to the authenticated user (`forUser(Auth::id()
 - **`dashboard.blade.php`** — four info-box stats (Total / Auto / Manual / Published) plus "Create Manual Paper" and "Auto Paper Generator" quick-action cards and a "Recent Papers" table.
 - **`papers/index.blade.php`** — DataTables list of the user's papers with type/grade/subject/school/status columns, export buttons, and SweetAlert2 delete confirmation.
 - **`papers/show.blade.php`** — For **auto** papers, renders a full printable A4 sheet from `paper_data` (logo, school, subject/code/session, materials, instructions, Section A questions). For **manual** papers, shows a metadata table with `question_count` and export/edit/delete actions.
-- **`papers/edit.blade.php`** — Edits common metadata (title, status, exam date, subject, grade, school) and, for auto papers, the paper identity fields (paper code, session, duration, materials, instructions) with a read-only question list.
+- **`papers/edit.blade.php`** — retired to `edit.blade.php.bak` (not routed); editing now happens in the SPA via the `/user/auto` and `/user/manual` launchers (§4c).
 - **`layouts/app.blade.php`** — shared AdminLTE layout (sidebar with Dashboard / My Papers / Manual Paper / Auto Paper nav, navbar with profile + logout, toastr flash messages).
 
 ---
@@ -583,4 +723,166 @@ Typography: EB Garamond for headings, Inter for body/UI, IBM Plex Mono for paper
 10.  **User Papers (My Papers)**: Non-admin users manage their saved papers at `/user/dashboard` → "My Papers". The SPA persists papers via `/api/user/papers` (session auth + CSRF from `bootstrap.js`); the Blade dashboard reads/writes them via the `user.papers.*` routes.
 
 ---
-*Last Updated: August 22, 2026 by ExamCraft AI Assistant*
+
+## 7e. Bulk Question Import Feature (September 12, 2026)
+
+A high-efficiency file upload system enabling admins to populate the question bank with 50–100+ questions at once via CSV or Excel files, replacing tedious one-by-one form entry.
+
+### Architecture
+
+#### Backend Service (`app/Services/QuestionImportService.php`)
+- **`import($file, $grade, $subject)`** — Main entry point; detects file type and delegates to appropriate parser
+- **`parseCSV($file)`** — Parses CSV files using `SplFileObject` with READ_CSV flag; handles header row + data rows; skips empty rows
+- **`parseExcel($file)`** — Parses `.xlsx` and `.xls` files using PhpSpreadsheet IOFactory; reads active sheet; handles multiple rows
+- **`mapRowToData($row, $headers)`** — Maps raw row array to associative dict using header row as keys
+- **`validateAndImport($rows, $grade, $subject)`** — Validates each row; returns early on validation errors (all-or-nothing); on success, bulk-inserts all valid questions
+- **`validateRow($rowData, $line)`** — Per-row validation:
+  - Question text: required, 5–1000 characters
+  - Options: 4–10 required, each max 500 characters
+  - Correct answer: required letter (A–J range), must match option count
+  - Converts answer letter to index (A→0, B→1, etc.)
+- **Error Handling**: Collects validation errors with row number and specific field/message; reports all errors at once (no silent failures)
+
+#### Controller Methods (`app/Http/Controllers/QuestionBankController.php`)
+- **`showBulkImport()`** — Displays the bulk import form
+- **`storeBulkImport(Request $request)`** — Validates file (CSV/XLSX/XLS, max 5MB), grade, subject; calls `QuestionImportService.import()`; redirects to index on success or back with error details on failure
+
+#### Routes (`routes/web.php`)
+```
+GET  /admin/questions/bulk-import        → showBulkImport (form)
+POST /admin/questions/bulk-import        → storeBulkImport (file processing)
+```
+**Route Ordering**: Bulk import routes are registered BEFORE the `Route::resource('questions', ...)` to prevent resource route conflict (RESTful resource routes match `/questions/{id}` which would interfere if custom routes come after).
+
+#### Blade View (`resources/views/admin/questions/bulk-import.blade.php`)
+- **Upload Zone**: Drag-and-drop area with click-to-browse fallback; visual feedback on hover/drag
+- **Grade Dropdown**: Populated on page load; required field
+- **Subject Dropdown**: Initially disabled; dynamically populated when grade is selected via vanilla JS event listener
+- **Subject Data**: Hardcoded in JS `subjectsByGrade` object mapped by grade:
+  - O Level: Biology, Chemistry, General Science, Mathematics, Physics
+  - A Level: Chemistry, Physics
+  - 10th Grade: Computer Science
+  - 9th Grade: Mathematics
+  - 8th Grade: General Science
+- **File Display**: Shows selected filename + size in MB after upload selection
+- **Template Guide**: Example table showing CSV format (Question Text, Option A–D, Correct Answer columns) with two worked examples
+- **Error Display**: Lists validation errors row-by-row with specific error messages
+- **Form Validation**: Client-side checks (file selected, grade, subject) before submit
+
+#### JavaScript (`resources/views/admin/questions/bulk-import.blade.php` scripts section)
+- **Subject Cascade**: Event listener on grade dropdown populates subject options; disables subject if no grade selected
+- **File Upload**: Click handler on upload zone triggers hidden file input; change event shows selected filename + size
+- **Drag & Drop**: dragover/dragleave/drop handlers for file selection without page refresh
+- **Form Validation**: On submit, validates file/grade/subject; shows alerts for missing fields; prevents submission if validation fails
+- **Implementation**: Pure vanilla JavaScript (no jQuery dependency) for better reliability
+
+### Data Flow
+
+1. **Admin navigates** to `/admin/questions/bulk-import`
+2. **Selects grade** → subject dropdown is populated via JS
+3. **Selects subject** (or enters/uploads file first, then selects grade+subject)
+4. **Uploads CSV/Excel file** via click or drag-and-drop
+5. **Clicks "Import Questions"** → form POSTs to `/admin/questions/bulk-import`
+6. **Server processes**:
+   - File type detection (CSV vs Excel)
+   - Row parsing (extracts headers + data rows)
+   - Per-row validation (text, options, answer)
+   - Bulk insert if all rows pass, or error report if any row fails
+7. **Redirect**:
+   - **Success**: `redirect()->route('admin.questions.index')->with('success', "...")`
+   - **Failure**: `redirect()->back()->withInput()->with('import_result', [...errors])`
+
+### CSV/Excel File Format
+
+#### Required Headers (first row)
+```
+Question Text, Option A, Option B, Option C, Option D, Correct Answer
+```
+
+#### Optional Headers (for 5–10 options)
+```
+Option E, Option F, Option G, Option H, Option I, Option J
+```
+
+#### Data Rows
+```csv
+What is 2+2?,3,4,5,6,B
+What is the capital of France?,London,Paris,Berlin,Madrid,B
+What is the SI unit of force?,Newton,Joule,Watt,Pascal,A
+```
+
+**Correct Answer Column**: Single letter (A, B, C, D, etc.) matching the option count — e.g., if only A–D provided, answer must be A/B/C/D; if A–F provided, answer can be A–F.
+
+### Import Result Display
+
+#### Success
+- Toast message: "Successfully imported N questions."
+- Redirect to question index; new questions appear in the table
+
+#### Validation Errors (all-or-nothing)
+- Alert card with red background: "Import Failed"
+- Summary: "Total rows: M | Failed: N"
+- Detailed error list:
+  ```
+  Row 5: Question text too short (min 5 characters)
+  Row 12: Correct answer 'X' not in valid range (A-D)
+  Row 8: Too few options (3 provided, min 4 required)
+  ```
+- User can fix the file locally and re-upload
+
+### Integration Points
+
+#### Question Bank Index (`resources/views/admin/questions/index.blade.php`)
+- New "Bulk Import" button (green, top-right card-tools) linking to `/admin/questions/bulk-import`
+- Placed next to existing "Add New Question" button
+
+#### Admin Dashboard Navigation
+- Questions sidebar link → index page shows the new button
+
+### Technical Decisions
+
+1. **All-or-Nothing Validation**: If any row fails validation, the entire batch is rejected. This prevents partial imports that could cause confusion about which questions succeeded. Users re-download their file, fix errors, and re-upload.
+
+2. **CSV Parser**: Uses `SplFileObject` with `READ_CSV` flag for native PHP CSV parsing (no external library required).
+
+3. **Excel Parser**: Uses `PhpOffice/PhpSpreadsheet` (already a common Laravel dependency for Excel handling).
+
+4. **Subject Cascade**: Hardcoded JS object instead of API call (faster, no extra HTTP round-trip, subjects rarely change).
+
+5. **User ID**: Uses `Auth::id() ?? 8` (admin user fallback) — in real HTTP request context, `Auth::id()` is always populated; fallback handles edge cases.
+
+6. **File Size Limit**: 5MB max (reasonable for CSV/Excel with hundreds of questions).
+
+### Files Modified/Created
+
+**New Files**:
+- `app/Services/QuestionImportService.php` (349 lines)
+- `resources/views/admin/questions/bulk-import.blade.php` (348 lines)
+
+**Modified Files**:
+- `app/Http/Controllers/QuestionBankController.php` — added `showBulkImport()` and `storeBulkImport()` methods
+- `resources/views/admin/questions/index.blade.php` — added "Bulk Import" button
+- `routes/web.php` — reordered routes so bulk import routes come before `Route::resource('questions', ...)`
+
+### Verification & Testing
+
+- ✓ Service tested with authenticated admin user
+- ✓ CSV parsing verified with real files
+- ✓ Excel parsing verified with `.xlsx` and `.xls` files
+- ✓ Validation logic tested with invalid rows (too-short text, insufficient options, bad answer letters)
+- ✓ Database inserts verified (questions appear with correct JSON structure)
+- ✓ Correct answer indices verified (A→0, B→1, C→2, etc.)
+- ✓ File upload UI tested (click, drag-and-drop both functional)
+- ✓ Subject dropdown cascade tested (auto-populates based on selected grade)
+- ✓ Error display tested (shows row-by-row error messages)
+
+### Future Enhancements
+
+- PDF parsing support (currently CSV/Excel only)
+- Duplicate question detection (hash-based or text similarity)
+- Progress bar for large file imports
+- Sample CSV/Excel download from the form
+- Batch processing for 1000+ question imports
+
+---
+*Last Updated: September 12, 2026 by ExamCraft AI Assistant*
