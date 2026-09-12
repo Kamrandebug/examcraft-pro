@@ -103,8 +103,13 @@ class AdminUserPaperController extends Controller
     {
         $this->verifyOwnership($paper, $user);
 
-        $path = $paper->type === 'auto' ? '/user/auto' : '/user/manual';
-        return redirect($path . "?paper_id={$paper->id}&admin_user={$user->id}&admin_name=" . urlencode($user->name));
+        $routeName = $paper->type === 'auto' ? 'user.auto' : 'user.manual';
+
+        return redirect()->route($routeName, [
+            'paper_id' => $paper->id,
+            'admin_user' => $user->id,
+            'admin_name' => $user->name
+        ]);
     }
 
     /**

@@ -3,13 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminSpaApiController;
 use App\Http\Controllers\AdminUserPaperController;
-use App\Http\Controllers\BlockController;
 use App\Http\Controllers\ExamCraftController;
-use App\Http\Controllers\ExamPaperController;
-use App\Http\Controllers\ExamPaperTopicController;
-use App\Http\Controllers\McqBlockController;
-use App\Http\Controllers\McqOptionController;
-use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuestionBankController;
 use App\Http\Controllers\UserController;
@@ -89,12 +83,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('/questions/bulk-import', [QuestionBankController::class, 'storeBulkImport'])->name('questions.bulk-import');
 
     Route::resource('questions', QuestionBankController::class);
-    Route::resource('papers', ExamPaperController::class);
-    Route::resource('papers.pages', PageController::class);
-    Route::resource('papers.pages.blocks', BlockController::class);
-    Route::resource('mcq-blocks', McqBlockController::class);
-    Route::resource('mcq-blocks.mcq-options', McqOptionController::class);
-    Route::resource('papers.topics', ExamPaperTopicController::class);
 
     // Admin User Papers — Blade CRUD
     Route::prefix('users/{user}/papers')

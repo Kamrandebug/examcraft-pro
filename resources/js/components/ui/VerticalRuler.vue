@@ -12,8 +12,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRuler } from '../../composables/useRuler';
+import { useUiStore } from '../../stores/uiStore';
 
 const props = defineProps({
   side: {
@@ -23,9 +24,22 @@ const props = defineProps({
   }
 });
 
+const uiStore = useUiStore();
 const rulerCanvas = ref(null);
 const indicator = ref(null);
 const { drawRuler, updateIndicator } = useRuler();
+
+function updateCanvasSize() {
+  if (!rulerCanvas.value) return;
+  const wrapper = rulerCanvas.value.parentElement;
+  if (!wrapper) return;
+  
+  // Update internal canvas dimensions to match display size
+  rulerCanvas.value.height = wrapper.clientHeight - 40; // minus buttons
+  rulerCanvas.value.width = wrapper.clientWidth;
+  
+  handleScroll();
+}
 
 function handleScroll() {
   const container = document.getElementById('canvas-area');
@@ -50,18 +64,19 @@ function scrollDown() {
   if (container) container.scrollTop += 100;
 }
 
+// Watch for zoom changes which affect scrollHeight
+watch(() => uiStore.currentZoom, () => {
+  // Wait for layout shift to finish
+  setTimeout(handleScroll, 50);
+});
+
 onMounted(() => {
   const container = document.getElementById('canvas-area');
   if (container) {
     container.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', updateCanvasSize);
     
-    // Set canvas height to match wrapper height
-    const wrapper = rulerCanvas.value.parentElement;
-    rulerCanvas.value.height = wrapper.clientHeight - 40; // minus buttons
-    rulerCanvas.value.width = wrapper.clientWidth;
-    
-    // Initial draw
-    handleScroll();
+    updateCanvasSize();
   }
 });
 
@@ -70,5 +85,6 @@ onUnmounted(() => {
   if (container) {
     container.removeEventListener('scroll', handleScroll);
   }
+  window.removeEventListener('resize', updateCanvasSize);
 });
 </script>

@@ -26,8 +26,6 @@
 <!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-@vite(['resources/css/app.css', 'resources/js/app.js'])
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <script>
@@ -45,6 +43,8 @@
         window.adminTargetUserId = @json($adminTargetUserId ?? null);
         window.adminTargetUserName = @json($adminTargetUserName ?? null);
     </script>
+
+@vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
 <div id="app"></div>

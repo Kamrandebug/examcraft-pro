@@ -117,21 +117,11 @@
                         </td>
                         <td>{{ $paper->created_at->diffForHumans() }}</td>
                         <td class="text-center">
-                            <a href="{{ route('user.papers.show', $paper->id) }}" class="btn btn-xs btn-info" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            @if($paper->type === 'auto')
-                                <a href="{{ url('/user/auto') }}?paper_id={{ $paper->id }}" class="btn btn-xs btn-warning" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            @else
-                                <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-xs btn-warning" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            @endif
-                            <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-xs btn-success" title="Print / Export">
-                                <i class="fas fa-print"></i>
-                            </a>
+                            @include('partials.action-buttons', [
+                                'viewRoute' => route('user.papers.show', $paper->id),
+                                'editRoute' => $paper->type === 'auto' ? url('/user/auto').'?paper_id='.$paper->id : url('/user/manual').'?paper_id='.$paper->id,
+                                'printRoute' => route('user.papers.export', $paper->id)
+                            ])
                         </td>
                     </tr>
                     @empty

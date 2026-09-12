@@ -61,17 +61,13 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="btn-group action-group">
-                                        <a href="{{ route('admin.questions.show', $question->id) }}" class="btn btn-action btn-action-view" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{{ route('admin.questions.edit', $question->id) }}" class="btn btn-action btn-action-edit" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-action btn-action-delete delete-btn" data-id="{{ $question->id }}" data-url="{{ route('admin.questions.destroy', $question->id) }}" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
+                                    @include('partials.action-buttons', [
+                                        'viewRoute' => route('admin.questions.show', $question->id),
+                                        'editRoute' => route('admin.questions.edit', $question->id),
+                                        'deleteForm' => "delete-form-{$question->id}",
+                                        'deleteId' => $question->id,
+                                        'deleteUrl' => route('admin.questions.destroy', $question->id)
+                                    ])
                                     <form id="delete-form-{{ $question->id }}" action="{{ route('admin.questions.destroy', $question->id) }}" method="POST" style="display: none;">
                                         @csrf
                                         @method('DELETE')

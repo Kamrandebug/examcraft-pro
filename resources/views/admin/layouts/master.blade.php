@@ -114,30 +114,6 @@
             </ul>
           </li>
 
-          <li class="nav-item {{ Request::is('admin/papers*') ? 'menu-open' : '' }}">
-            <a href="#" class="nav-link {{ Request::is('admin/papers*') ? 'active' : '' }}">
-              <i class="nav-icon fas fa-file-alt"></i>
-              <p>
-                Exam Papers
-                <i class="right fas fa-angle-left"></i>
-              </p>
-            </a>
-            <ul class="nav nav-treeview">
-              <li class="nav-item">
-                <a href="{{ route('admin.papers.create') }}" class="nav-link {{ Request::is('admin/papers/create') ? 'active' : '' }}">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Create Paper</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="{{ route('admin.papers.index') }}" class="nav-link {{ Request::is('admin/papers') ? 'active' : '' }}">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>All Papers</p>
-                </a>
-              </li>
-            </ul>
-          </li>
-
           <li class="nav-item">
             <a href="{{ route('admin.users.index') }}" class="nav-link {{ Request::is('admin/users*') ? 'active' : '' }}">
               <i class="nav-icon fas fa-users"></i>
@@ -208,6 +184,8 @@
 
 <script>
   $(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+
     @if(session('success'))
       toastr.success('{{ session('success') }}');
     @endif

@@ -55,54 +55,7 @@
     </div>
 
     <div class="row">
-      <div class="col-md-8">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Recent Exam Papers</h3>
-            <div class="card-tools">
-                <a href="{{ route('admin.papers.index') }}" class="btn btn-sm btn-primary">View All</a>
-            </div>
-          </div>
-          <div class="card-body">
-            <table id="recent-papers" class="table table-bordered table-striped">
-              <thead>
-              <tr>
-                <th>Title</th>
-                <th>Subject</th>
-                <th>Year</th>
-                <th>Status</th>
-                <th>Date</th>
-              </tr>
-              </thead>
-              <tbody>
-              @isset($recentPapers)
-                  @foreach($recentPapers as $paper)
-                  <tr>
-                    <td>{{ $paper->title }}</td>
-                    <td>{{ $paper->subject }}</td>
-                    <td>{{ $paper->year }}</td>
-                    <td>
-                        @if($paper->status == 'published')
-                            <span class="badge badge-success">Published</span>
-                        @else
-                            <span class="badge badge-warning">Draft</span>
-                        @endif
-                    </td>
-                    <td>{{ $paper->created_at->format('Y-m-d') }}</td>
-                  </tr>
-                  @endforeach
-              @else
-                  <tr>
-                    <td colspan="5" class="text-center">No recent papers found.</td>
-                  </tr>
-              @endisset
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-4">
+      <div class="col-md-12">
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">Recent Questions</h3>
@@ -144,18 +97,4 @@
 <script src="{{ asset('adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
-
-<script>
-  $(function () {
-    $("#recent-papers").DataTable({
-      "responsive": true,
-      "lengthChange": false,
-      "autoWidth": false,
-      "searching": false,
-      "paging": false,
-      "info": false,
-      "order": [[4, "desc"]]
-    });
-  });
-</script>
 @endsection

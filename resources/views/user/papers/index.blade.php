@@ -67,32 +67,14 @@
                             </td>
                             <td>{{ $paper->created_at->format('d M Y') }}</td>
                             <td>
-                                <div class="btn-group">
-                                    @if($paper->type === 'manual')
-                                        <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}&mode=preview" class="btn btn-info btn-sm" title="View Paper">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    @else
-                                        <a href="{{ route('user.papers.show', $paper->id) }}" class="btn btn-info btn-sm" title="View Paper">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    @endif
-                                    @if($paper->type === 'auto')
-                                        <a href="{{ url('/user/auto') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-sm" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    @else
-                                        <a href="{{ url('/user/manual') }}?paper_id={{ $paper->id }}" class="btn btn-warning btn-sm" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    @endif
-                                    <a href="{{ route('user.papers.export', $paper->id) }}" class="btn btn-success btn-sm" title="Print / Export">
-                                        <i class="fas fa-print"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $paper->id }}" data-url="{{ route('user.papers.destroy', $paper->id) }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
+                                @include('partials.action-buttons', [
+                                    'viewRoute' => $paper->type === 'manual' ? url('/user/manual').'?paper_id='.$paper->id.'&mode=preview' : route('user.papers.show', $paper->id),
+                                    'editRoute' => $paper->type === 'auto' ? url('/user/auto').'?paper_id='.$paper->id : url('/user/manual').'?paper_id='.$paper->id,
+                                    'printRoute' => route('user.papers.export', $paper->id),
+                                    'deleteForm' => 'delete-form-'.$paper->id,
+                                    'deleteId' => $paper->id,
+                                    'deleteUrl' => route('user.papers.destroy', $paper->id)
+                                ])
                                 <form id="delete-form-{{ $paper->id }}" action="{{ route('user.papers.destroy', $paper->id) }}" method="POST" style="display: none;">
                                     @csrf
                                     @method('DELETE')

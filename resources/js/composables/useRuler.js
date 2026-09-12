@@ -14,9 +14,12 @@ export function useRuler() {
         const tickColor = rootStyle.getPropertyValue('--ruler-tick').trim() || '#666';
         const labelColor = rootStyle.getPropertyValue('--ruler-label').trim() || '#999';
 
+        let lastLabelY = -100;
+        const minLabelSpacing = 16; // Minimum pixels between labels to prevent overlap
+
         for (let mm = 0; mm <= scrollHeight; mm += 10) {
             const y = (mm - scrollTop) * ratio;
-            if (y < 0 || y > h) continue;
+            if (y < -20 || y > h + 20) continue; // Small buffer for labels
             
             const isMajor = mm % 50 === 0;
             ctx.strokeStyle = tickColor;
@@ -28,9 +31,13 @@ export function useRuler() {
             ctx.stroke();
             
             if (isMajor) {
-                ctx.fillStyle = labelColor;
-                ctx.font = '8px sans-serif';
-                ctx.fillText(Math.round(mm) + '', 1, y - 1);
+                // Only draw label if there is enough space to prevent "doubled digits" overlapping
+                if (y - lastLabelY >= minLabelSpacing) {
+                    ctx.fillStyle = labelColor;
+                    ctx.font = '8px sans-serif';
+                    ctx.fillText(Math.round(mm) + '', 1, y - 1);
+                    lastLabelY = y;
+                }
             }
         }
     }

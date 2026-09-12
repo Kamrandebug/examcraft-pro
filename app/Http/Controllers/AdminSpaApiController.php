@@ -89,33 +89,7 @@ class AdminSpaApiController extends Controller
             'status'      => 'sometimes|in:draft,published',
         ]);
 
-        // Get existing paper_data or use new one
-        $paperData = $validated['paper_data'] ?? $paper->paper_data ?? [];
-
-        // Sync title to paper_data if paperTitle exists
-        if (isset($validated['title'])) {
-            if (isset($paperData['paperTitle'])) {
-                $paperData['paperTitle'] = $validated['title'];
-            }
-        }
-
-        // Build update data
-        $updateData = [];
-        if (isset($validated['title'])) $updateData['title'] = $validated['title'];
-        if (isset($validated['grade'])) $updateData['grade'] = $validated['grade'];
-        if (isset($validated['subject'])) $updateData['subject'] = $validated['subject'];
-        if (isset($validated['school_name'])) $updateData['school_name'] = $validated['school_name'];
-        if (isset($validated['exam_date'])) $updateData['exam_date'] = $validated['exam_date'];
-        if (isset($validated['status'])) $updateData['status'] = $validated['status'];
-
-        // Always update paper_data if changes were made
-        if (!empty($updateData) || isset($validated['paper_data'])) {
-            $updateData['paper_data'] = $paperData;
-        }
-
-        if (!empty($updateData)) {
-            $paper->update($updateData);
-        }
+        $paper->update($validated);
 
         return response()->json([
             'success' => true,

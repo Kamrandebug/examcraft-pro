@@ -77,20 +77,15 @@
                             </td>
                             <td>{{ $paper->created_at->format('Y-m-d H:i') }}</td>
                             <td>
-                                <div class="btn-group">
-                                    <a href="{{ route('admin.user.papers.show', [$user->id, $paper->id]) }}" class="btn btn-info btn-sm" title="Preview">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ route('admin.user.papers.edit', [$user->id, $paper->id]) }}" class="btn btn-warning btn-sm" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{{ route('admin.user.papers.export', [$user->id, $paper->id]) }}" class="btn btn-success btn-sm" title="Export">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ $paper->id }}" data-user-id="{{ $user->id }}" data-url="{{ route('admin.user.papers.destroy', [$user->id, $paper->id]) }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
+                                @include('partials.action-buttons', [
+                                    'viewRoute' => route('admin.user.papers.show', [$user->id, $paper->id]),
+                                    'editRoute' => route('admin.user.papers.edit', [$user->id, $paper->id]),
+                                    'downloadRoute' => route('admin.user.papers.export', [$user->id, $paper->id]),
+                                    'deleteForm' => "delete-form-{$paper->id}",
+                                    'deleteId' => $paper->id,
+                                    'deleteUrl' => route('admin.user.papers.destroy', [$user->id, $paper->id]),
+                                    'deleteAttributes' => "data-user-id=\"{$user->id}\""
+                                ])
                                 <form id="delete-form-{{ $paper->id }}" action="{{ route('admin.user.papers.destroy', [$user->id, $paper->id]) }}" method="POST" style="display: none;">
                                     @csrf
                                     @method('DELETE')

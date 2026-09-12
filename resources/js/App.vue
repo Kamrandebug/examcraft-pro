@@ -113,11 +113,15 @@ async function loadPaperFromServer(paperId) {
 
 async function loadManualPaperForEdit(id, examStore) {
     try {
-        const res = await window.axios.get(`/api/user/papers/${id}`);
-        const paper = res.data.paper ?? res.data;
-        const pd = (typeof paper.paper_data === 'string')
-            ? JSON.parse(paper.paper_data)
-            : (paper.paper_data ?? {});
+        console.log('loadManualPaperForEdit called for:', id, 'adminTargetUserId:', window.adminTargetUserId);
+        const apiEndpoint = window.adminTargetUserId
+            ? `/api/admin/users/${window.adminTargetUserId}/papers/${id}`
+            : `/api/user/papers/${id}`;
+        console.log('API Endpoint:', apiEndpoint);
+
+        const { data } = await window.axios.get(apiEndpoint);
+        const paper = data.paper || {};
+        const pd = data.paper_data || {};
 
         if (pd && Object.keys(pd).length > 0) {
             examStore.loadFromSnapshot(pd);
@@ -128,7 +132,7 @@ async function loadManualPaperForEdit(id, examStore) {
             }
         }
 
-        examStore.editPaperId = id;
+        examStore.editPaperId = paper.id || id;
         examStore.isEditMode = true;
     } catch (err) {
         console.error('loadManualPaperForEdit error:', err);

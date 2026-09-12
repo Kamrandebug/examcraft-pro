@@ -689,7 +689,7 @@ body.view-auto #app {
   position: relative;
   color: #111;
   font-family: var(--paper-font-family);
-  transition: margin 0.2s ease;
+  /* Removed margin transition to prevent layout overlap during zoom */
 }
 .page-canvas .paper-info-bar {
   position: absolute;
@@ -747,19 +747,42 @@ body.view-auto #app {
 .block-ctrl-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 /* Block type styling */
-.mcq-block { padding: 8px 0; }
-.mcq-stem {
+.block-mcq { padding: 8px 0; }
+.q-block-header { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+.q-block-number { font-weight: 700; font-size: 13px; font-family: var(--paper-font-family); }
+.q-stem {
   font-size: var(--paper-q-font-size);
   font-weight: var(--paper-q-font-weight);
   margin-bottom: 4px;
   font-family: var(--paper-font-family);
+  line-height: 1.6;
 }
-.mcq-options { font-size: var(--paper-opt-font-size); }
-.mcq-option {
+.mcq-options { 
+  font-size: var(--paper-opt-font-size);
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+.mcq-options-1col { grid-template-columns: 1fr; }
+.mcq-options-2col { grid-template-columns: 1fr 1fr; gap: 4px 20px; }
+.mcq-options-inline { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.mcq-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 2px 0;
   font-family: var(--paper-font-family);
 }
-.mcq-option b { margin-right: 8px; }
+.mcq-option-letter {
+  font-weight: 700;
+  font-size: var(--paper-opt-font-size);
+  width: 18px;
+  flex-shrink: 0;
+}
+.mcq-option-text {
+  flex: 1;
+}
 
 .section-block {
   font-family: var(--paper-header-font);

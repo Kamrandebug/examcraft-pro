@@ -885,4 +885,49 @@ What is the SI unit of force?,Newton,Joule,Watt,Pascal,A
 - Batch processing for 1000+ question imports
 
 ---
+
+## 12. Manual Editor UI/UX & Layout Fixes (September 12, 2026)
+
+Addressed critical bugs in the Manual Editor related to navigation, layout stability, and component rendering.
+
+### Bug 1: Navigation Logic
+- **Issue**: The back arrow in `TopBar.vue` incorrectly routed all users to the SPA HomeScreen, which was especially problematic for admins editing a specific user's paper.
+- **Fix**: Implemented context-aware redirection:
+  - **Admin Context**: Redirects via full page refresh to the specific user's paper list at `/admin/users/{id}/papers`.
+  - **User Context**: Redirects to the standard user dashboard at `/user/dashboard`.
+- **File Modified**: `resources/js/components/TopBar.vue`
+
+### Bug 2: Canvas & Ruler Rendering
+- **Canvas Overlap**: Resolved an issue where zoomed pages (especially at 75%) would overlap due to stale negative margin calculations.
+  - Implemented `ResizeObserver` in `CanvasArea.vue` to dynamically update margins whenever page content changes.
+  - Used `requestAnimationFrame` to ensure measurements happen after browser layout.
+  - Removed `transition: margin` in `app.css` to prevent layout drift during scaling.
+- **Ruler Duplication**: Fixed overlapping/duplicated numbers in `VerticalRuler.vue`.
+  - Added `minLabelSpacing` logic in `useRuler.js` to skip labels that would collide at dense zoom levels.
+  - Added watchers for zoom and window resize to trigger immediate ruler redraws.
+- **Files Modified**: `CanvasArea.vue`, `VerticalRuler.vue`, `useRuler.js`, `app.css`.
+
+### Save Button Icon Visibility
+- **Issue**: The Save button rendered as a blank box in the "Late Night" theme due to Font Awesome 6 icon names being used in a Font Awesome 5 environment.
+- **Fix**:
+  - Standardized all `TopBar` icons to use the `fas` prefix and FA5-compatible names (e.g., `fa-save`).
+  - Added a reactive `saveStatus` to handle `idle` → `saving` → `success` (checkmark) transitions.
+- **File Modified**: `TopBar.vue`.
+
+---
+
+## 13. Unified Action Button System (September 12, 2026)
+
+Unified the design of action buttons across all Admin and User dashboard tables to ensure UI consistency.
+
+### Implementation
+- **Shared Partial**: Moved the admin action-buttons partial to a canonical shared location at `resources/views/partials/action-buttons.blade.php`.
+- **Feature Expansion**: Added support for an optional `printRoute` to the partial, using the neutral `.btn-action` outline style.
+- **Dashboard Updates**:
+  - Updated all Admin views to use the new shared partial path.
+  - Replaced legacy solid-colored buttons in the User "My Papers" table and "Recent Papers" dashboard table with the unified partial.
+  - Preserved existing route logic for Manual vs. Auto paper editors.
+- **CSS**: Verified that `examcraft-theme.css` (containing the `.btn-action` rules) is loaded in both dashboard layouts.
+
+---
 *Last Updated: September 12, 2026 by ExamCraft AI Assistant*

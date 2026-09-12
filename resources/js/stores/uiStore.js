@@ -17,7 +17,7 @@ export const useUiStore = defineStore('ui', () => {
     const showSavedBadge = ref(false);
     const footerShowPageNum = ref(true);
     const toasts = ref([]);
-    const currentView = ref('home');
+    const currentView = ref(window.initialMode || 'home');
 
     function setView(view) {
         currentView.value = view;

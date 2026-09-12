@@ -53,29 +53,26 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ route('admin.user.papers.index', $user->id) }}" class="badge badge-info">
-                                    {{ $user->userPapers()->count() }} papers
+                                @php $paperCount = $user->userPapers()->count(); @endphp
+                                <a href="{{ route('admin.user.papers.index', $user->id) }}" class="btn btn-sm papers-btn">
+                                    <i class="fas fa-folder-open mr-1"></i> {{ $paperCount }} papers
                                 </a>
                             </td>
                             <td>{{ $user->created_at->format('Y-m-d H:i') }}</td>
                             <td>
-                                <div class="btn-group action-group">
-                                    <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-action btn-action-edit" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{{ route('admin.user.papers.index', $user->id) }}" class="btn btn-action btn-action-view" title="View Papers">
-                                        <i class="fas fa-file-alt"></i>
-                                    </a>
-                                    @if(auth()->id() !== $user->id)
-                                    <button type="button" class="btn btn-action btn-action-delete delete-btn" data-id="{{ $user->id }}" data-url="{{ route('admin.users.destroy', $user->id) }}" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    @endif
-                                </div>
+                                @include('partials.action-buttons', [
+                                    'editRoute' => route('admin.users.edit', $user->id),
+                                    'viewRoute' => route('admin.user.papers.index', $user->id),
+                                    'deleteForm' => auth()->id() !== $user->id ? "delete-form-{$user->id}" : null,
+                                    'deleteId' => $user->id,
+                                    'deleteUrl' => route('admin.users.destroy', $user->id)
+                                ])
+                                @if(auth()->id() !== $user->id)
                                 <form id="delete-form-{{ $user->id }}" action="{{ route('admin.users.destroy', $user->id) }}" method="POST" style="display: none;">
                                     @csrf
                                     @method('DELETE')
                                 </form>
+                                @endif
                             </td>
                         </tr>
                         @endforeach

@@ -3,13 +3,13 @@
     <div class="topbar-scroll">
     <!-- Back to Home -->
     <button class="tb-icon home-btn" data-tip="Back to Home" @click="goHome">
-      <i class="fa fa-arrow-left"></i>
+      <i class="fas fa-arrow-left"></i>
     </button>
 
     <!-- Brand -->
     <div class="brand">ExamCraft <span>Pro v36</span></div>
     <span class="autosave-badge" :class="{ show: uiStore.showSavedBadge }" id="autosave-badge">
-      <i class="fa fa-circle-check"></i> Saved
+      <i class="fas fa-check-circle"></i> Saved
     </span>
 
     <div class="topbar-sep"></div>
@@ -21,36 +21,36 @@
     <!-- ── ADD BLOCKS group ── -->
     <div class="tb-add-group">
       <button class="tb-icon" data-tip="Add MCQ" @click="addBlock('mcq')">
-        <i class="fa fa-list-ol"></i>
+        <i class="fas fa-list-ol"></i>
       </button>
       <button class="tb-icon" data-tip="Add Section" @click="addBlock('section')">
-        <i class="fa fa-heading"></i>
+        <i class="fas fa-heading"></i>
       </button>
       <button class="tb-icon" data-tip="Add Text Block" @click="addBlock('text')">
-        <i class="fa fa-align-left"></i>
+        <i class="fas fa-align-left"></i>
       </button>
       <button class="tb-icon" data-tip="Add Image" @click="addBlock('image')">
-        <i class="fa fa-image"></i>
+        <i class="fas fa-image"></i>
       </button>
       <button class="tb-icon" data-tip="Add Table" @click="addBlock('table')">
-        <i class="fa fa-table"></i>
+        <i class="fas fa-table"></i>
       </button>
     </div>
     <div class="topbar-sep"></div>
 
     <!-- Cambridge Template -->
     <button class="topbar-btn tb-tip" data-tip="Load Cambridge MCQ template" @click="loadCambridgeTemplate()" style="gap:5px;padding:5px 8px;">
-      <i class="fa fa-graduation-cap"></i> <span style="font-size:11px;">Template</span>
+      <i class="fas fa-graduation-cap"></i> <span style="font-size:11px;">Template</span>
     </button>
 
     <!-- New Page -->
     <button class="tb-icon green" data-tip="Add New Page" @click="addPage()">
-      <i class="fa fa-file-circle-plus"></i>
+      <i class="fas fa-plus-circle"></i>
     </button>
 
     <!-- Clear -->
     <button class="tb-icon danger" data-tip="Clear Paper" @click="clearPaper()">
-      <i class="fa fa-trash-alt"></i>
+      <i class="fas fa-trash-alt"></i>
     </button>
 
     <div class="topbar-spacer"></div>
@@ -61,7 +61,7 @@
         style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--bg-card);color:var(--text-secondary);font-size:11px;font-family:var(--font-body);font-weight:500;cursor:pointer;transition:var(--transition);white-space:nowrap;height:32px;">
         <span id="theme-drop-icon">{{ currentThemeIcon }}</span>
         <span id="theme-drop-label" style="font-size:11px;">{{ currentThemeLabel }}</span>
-        <i class="fa fa-chevron-down" style="font-size:8px;opacity:0.6;"></i>
+        <i class="fas fa-chevron-down" style="font-size:8px;opacity:0.6;"></i>
       </button>
       <ThemeDropdown />
     </div>
@@ -69,31 +69,35 @@
 
     <!-- ── PROJECT MANAGEMENT group ── -->
     <button class="tb-icon purple" data-tip="Project Manager" @click="openProjectManager()">
-      <i class="fa fa-folder-tree"></i>
+      <i class="fas fa-project-diagram"></i>
     </button>
     <button class="tb-icon" data-tip="Save (Ctrl+S)" @click="saveCurrentProject(true)">
-      <i class="fa fa-floppy-disk"></i>
+      <i class="fas fa-save"></i>
     </button>
     <button class="tb-icon" data-tip="Export JSON" @click="exportProjectJSON()">
-      <i class="fa fa-file-arrow-down"></i>
+      <i class="fas fa-file-download"></i>
     </button>
     <button class="tb-icon" data-tip="Import JSON" @click="$refs.importInput.click()">
-      <i class="fa fa-file-arrow-up"></i>
+      <i class="fas fa-file-upload"></i>
     </button>
     <input type="file" ref="importInput" accept=".json" style="display:none" @change="importProjectJSON($event)"/>
     <div class="topbar-sep"></div>
 
     <!-- Preview + Print -->
     <button class="tb-icon blue" data-tip="Preview Paper" @click="showPreview()">
-      <i class="fa fa-eye"></i>
+      <i class="fas fa-eye"></i>
     </button>
     <button class="topbar-btn accent tb-tip" data-tip="Print / Export PDF" @click="printPaper()" style="padding:5px 10px;gap:5px;">
-      <i class="fa fa-print"></i> <span style="font-size:11px;">Print</span>
+      <i class="fas fa-print"></i> <span style="font-size:11px;">Print</span>
     </button>
 
     <!-- Save to My Papers (server) -->
     <button class="tb-icon green" :data-tip="examStore.isEditMode ? 'Update Paper' : 'Save to My Papers (server)'" @click="saveManualPaper" :disabled="isSavingManual">
-      <i class="fa" :class="isSavingManual ? 'fa-spinner fa-spin' : (examStore.editPaperId ? 'fa-cloud-check' : 'fa-cloud-upload-alt')"></i>
+      <i class="fas" :class="{
+        'fa-spinner fa-spin': isSavingManual,
+        'fa-check': saveStatus === 'success',
+        'fa-cloud-upload-alt': !isSavingManual && saveStatus !== 'success'
+      }"></i>
     </button>
 
     <div class="topbar-sep"></div>
@@ -113,7 +117,7 @@
           </div>
           <div class="dropdown-divider"></div>
           <button class="logout-btn" @click="logout">
-            <i class="fa fa-sign-out-alt"></i> Logout
+            <i class="fas fa-sign-out-alt"></i> Logout
           </button>
         </div>
       </Teleport>
@@ -146,6 +150,7 @@ const importInput = ref(null);
 const userDropdownRef = ref(null);
 const showUserDropdown = ref(false);
 const isSavingManual = ref(false);
+const saveStatus = ref('idle'); // 'idle', 'success'
 
 const userName = window.authUser?.name || 'User';
 const userEmail = window.authUser?.email || '';
@@ -181,8 +186,8 @@ function toggleThemeDropdown(event) {
 }
 
 function goHome() {
-    if (window.authUser?.role === 'admin') {
-        uiStore.setView('home');
+    if (window.adminTargetUserId) {
+        window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
     } else {
         window.location.href = '/user/dashboard';
     }
@@ -237,6 +242,7 @@ async function saveManualPaper() {
 
         if (examStore.editPaperId) {
             await window.axios.put(`${apiBaseUrl}/${examStore.editPaperId}`, payload);
+            saveStatus.value = 'success';
             showToast('Paper updated successfully!', 'success');
 
             // Redirect to admin papers section if in admin context
@@ -244,11 +250,16 @@ async function saveManualPaper() {
                 setTimeout(() => {
                     window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
                 }, 800);
+            } else {
+                setTimeout(() => {
+                    saveStatus.value = 'idle';
+                }, 2000);
             }
         } else {
             const { data } = await window.axios.post(apiBaseUrl, payload);
             examStore.editPaperId = data.paper.id;
             examStore.isEditMode = true;
+            saveStatus.value = 'success';
             showToast('Paper saved to your account!', 'success');
 
             // Redirect to admin papers section if in admin context
@@ -256,6 +267,10 @@ async function saveManualPaper() {
                 setTimeout(() => {
                     window.location.href = `/admin/users/${window.adminTargetUserId}/papers`;
                 }, 800);
+            } else {
+                setTimeout(() => {
+                    saveStatus.value = 'idle';
+                }, 2000);
             }
         }
     } catch (err) {
